@@ -59,7 +59,7 @@ const Login = () => {
                         fontFamily: "'Times New Roman', Times, serif",
                         fontWeight: 'bold'
                     }}>
-                        CerebroSpark
+                        Cerebrospark Innovations
                     </h1>
                     <p style={{
                         color: '#e0e0e0',

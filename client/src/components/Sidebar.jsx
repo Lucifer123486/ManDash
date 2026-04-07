@@ -141,7 +141,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                             color: 'white',
                             fontFamily: "'Times New Roman', Times, serif"
                         }}>
-                            CerebroSpark
+                            Cerebrospark Innovations
                         </h1>
                     </div>
 
