@@ -6,7 +6,7 @@ dotenv.config();
 // CONFIGURATION
 const LOCAL_URI = 'mongodb://localhost:27017/cerebrospark';
 // User provided Atlas URI (with @ in password, we might need to handle it)
-const ATLAS_URI = 'mongodb+srv://mayur2005:2005%40Mayur@mandash.gffxy17.mongodb.net/cerebrospark?retryWrites=true&w=majority&appName=ManDash';
+const ATLAS_URI = 'mongodb+srv://mayur2005:2005Mayur@mandash.gffxy17.mongodb.net/cerebrospark?retryWrites=true&w=majority&appName=ManDash';
 
 const collectionsToMigrate = [
   'users',
@@ -16,7 +16,10 @@ const collectionsToMigrate = [
   'activationrecords',
   'orders',
   'tickets',
-  'prebookings'
+  'prebookings',
+  'formschemas',
+  'formsubmissions',
+  'maintenancerecords'
 ];
 
 async function migrate() {

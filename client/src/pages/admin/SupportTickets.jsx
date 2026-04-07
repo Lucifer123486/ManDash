@@ -469,6 +469,10 @@ const SupportTickets = () => {
                     <h3>{resolvedTickets.length}</h3>
                     <p>Resolved</p>
                 </div>
+                <div className="stat-card total" style={{ borderBottomColor: '#2196f3' }}>
+                    <h3>{visibleTickets.length}</h3>
+                    <p>Total Tickets</p>
+                </div>
             </div>
 
             <div className="tickets-list">
