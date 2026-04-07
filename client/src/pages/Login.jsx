@@ -54,19 +54,22 @@ const Login = () => {
                     <CompanyLogo size={140} theme="dark" />
                     <h1 style={{
                         color: '#FFD600',
-                        fontSize: '2.5rem',
+                        fontSize: '1.8rem',
                         marginBottom: '4px',
                         fontFamily: "'Times New Roman', Times, serif",
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap'
                     }}>
                         Cerebrospark Innovations
                     </h1>
                     <p style={{
                         color: '#e0e0e0',
-                        fontSize: '1rem',
-                        fontFamily: "'Times New Roman', Times, serif"
+                        fontSize: '0.9rem',
+                        fontFamily: "'Times New Roman', Times, serif",
+                        letterSpacing: '2px',
+                        fontWeight: 'bold'
                     }}>
-                        INNOVATIONS PRIVATE LIMITED
+                        PRIVATE LIMITED
                     </p>
                 </div>
 
