@@ -64,7 +64,7 @@ const formSchemaDefinition = new mongoose.Schema({
     },
     category: {
         type: String,
-        enum: ['manufacturing', 'quality', 'testing', 'packaging', 'dispatch', 'certificate', 'material'],
+        enum: ['manufacturing', 'quality', 'testing', 'packaging', 'dispatch', 'certificate', 'material', 'maintenance'],
         required: true
     },
     // Which roles can access this form

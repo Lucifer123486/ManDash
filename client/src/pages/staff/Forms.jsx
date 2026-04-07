@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { formsAPI } from '../../services/api';
+import { formsAPI, dronesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const StaffForms = () => {
     const [schemas, setSchemas] = useState([]);
+    const [drones, setDrones] = useState([]);
+    const [selectedDrone, setSelectedDrone] = useState('');
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchSchemas();
+        fetchDrones();
     }, []);
+
+    const fetchDrones = async () => {
+        try {
+            const res = await dronesAPI.getAll();
+            setDrones(res.data.data || []);
+        } catch (err) {
+            console.error('Error fetching drones:', err);
+        }
+    };
 
     const fetchSchemas = async () => {
         try {
@@ -22,19 +36,16 @@ const StaffForms = () => {
             let filteredSchemas = allSchemas;
 
             if (userRole === 'qi') {
-                // QI sees only qi-accessible forms
                 filteredSchemas = allSchemas.filter(s =>
                     s.allowedRoles?.includes('qi')
                 );
             } else if (userRole === 'staff') {
-                // Staff sees gs and manufacturing_staff forms
                 filteredSchemas = allSchemas.filter(s =>
                     s.allowedRoles?.includes('gs') ||
                     s.allowedRoles?.includes('manufacturing_staff') ||
                     s.allowedRoles?.includes('staff')
                 );
             }
-            // Admin sees all
 
             setSchemas(filteredSchemas);
         } catch (error) {
@@ -42,6 +53,23 @@ const StaffForms = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleFormClick = (schema) => {
+        if (!selectedDrone) {
+            alert('Please select a drone first to fill this form.');
+            return;
+        }
+
+        const drone = drones.find(d => d._id === selectedDrone);
+        const serial = drone?.serialNo || drone?.droneId || '';
+        const model = drone?.model || drone?.modelNo || 'CS_KRISHI_10L';
+        
+        navigate(`/staff/forms/${schema.formCode}?droneId=${selectedDrone}&droneSerial=${serial}&modelNo=${model}`);
+    };
+
+    const handleRequestAll = async () => {
+        alert('Access requests are no longer required. You can fill any form directly.');
     };
 
     const getCategoryColor = (category) => {
@@ -78,8 +106,36 @@ const StaffForms = () => {
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Available Forms</h1>
-                    <p className="page-subtitle">Select a form to fill out</p>
+                    <p className="page-subtitle">Select a drone and form to fill out</p>
                 </div>
+            </div>
+
+            {/* Drone Selection */}
+            <div className="card" style={{ marginBottom: '24px', maxWidth: '600px', display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">Select Drone Target</label>
+                    <select
+                        className="form-select"
+                        value={selectedDrone}
+                        onChange={(e) => setSelectedDrone(e.target.value)}
+                        style={{ border: '2px solid #2196F3' }}
+                    >
+                        <option value="">-- Select a Drone Serial No --</option>
+                        {drones.map(d => (
+                            <option key={d._id} value={d._id}>
+                                {d.serialNo} ({d.model || d.modelNo})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <button
+                    onClick={handleRequestAll}
+                    className="btn btn-primary"
+                    disabled={!selectedDrone}
+                    style={{ height: '42px', padding: '0 20px' }}
+                >
+                    Request All
+                </button>
             </div>
 
             {Object.entries(grouped).map(([category, forms]) => (
@@ -104,14 +160,15 @@ const StaffForms = () => {
 
                     <div className="grid grid-cols-3 gap-md">
                         {forms.map((schema) => (
-                            <Link
+                            <div
                                 key={schema._id}
-                                to={`/staff/forms/${schema.formCode}`}
+                                onClick={() => handleFormClick(schema)}
                                 className="card"
                                 style={{
                                     textDecoration: 'none',
                                     borderLeft: `4px solid ${getCategoryColor(schema.category)}`,
-                                    transition: 'transform 0.2s, box-shadow 0.2s'
+                                    transition: 'transform 0.2s, box-shadow 0.2s',
+                                    cursor: 'pointer'
                                 }}
                             >
                                 <div style={{
@@ -151,7 +208,7 @@ const StaffForms = () => {
                                 <p className="text-xs text-muted">
                                     {schema.sections?.reduce((acc, s) => acc + (s.fields?.length || 0), 0) || 0} fields
                                 </p>
-                            </Link>
+                            </div>
                         ))}
                     </div>
                 </div>

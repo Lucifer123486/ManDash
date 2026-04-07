@@ -9,7 +9,13 @@ const {
     getFormSubmissions,
     getFormSubmission,
     updateSubmissionStatus,
-    getDroneSubmissions
+    getDroneSubmissions,
+    requestFormAccess,
+    requestBulkAccess,
+    getAccessRequests,
+    updateAccessRequest,
+    bulkUpdateAccessRequests,
+    checkFormAccess
 } = require('../controllers/formController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -40,5 +46,13 @@ router.route('/submission/:id')
 router.put('/submission/:id/status', authorize('admin'), updateSubmissionStatus);
 
 router.get('/drone/:droneId', getDroneSubmissions);
+
+// Access Request Routes
+router.post('/access-request', requestFormAccess);
+router.post('/access-request/bulk', requestBulkAccess);
+router.get('/access-requests', authorize('admin'), getAccessRequests);
+router.put('/access-requests/bulk', authorize('admin'), bulkUpdateAccessRequests);
+router.put('/access-request/:id', authorize('admin'), updateAccessRequest);
+router.get('/check-access/:droneId/:formCode', checkFormAccess);
 
 module.exports = router;

@@ -42,17 +42,16 @@ const orderSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: [
-            'pending',
-            'prebooking',
-            'confirmed',
+            'booking_confirmed',
             'in_manufacturing',
             'ready_for_testing',
-            'uin_registered',
+            'tested_successfully',
+            'uin_generated',
+            'uin_transferred_successfully',
             'ready_to_dispatch',
-            'dispatched',
             'delivered'
         ],
-        default: 'pending'
+        default: 'booking_confirmed'
     },
     // Important dates
     orderDate: {
@@ -105,6 +104,13 @@ const orderSchema = new mongoose.Schema({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+    // Service Tracking
+    freeServicesUsed: {
+        type: Number,
+        default: 0,
+        required: true,
+        max: 6
     },
     remarks: String
 }, {

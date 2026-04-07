@@ -1,15 +1,35 @@
 import { useState, useEffect } from 'react';
-import { ordersAPI } from '../../services/api';
+import { ordersAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import DroneIcon from '../../components/common/DroneIcon';
+import { Link } from 'react-router-dom';
+import VerticalTimeline from '../../components/common/VerticalTimeline';
+import { getRemainingTimeLabel } from '../../utils/dateUtils';
 
 const ClientDashboard = () => {
     const { user } = useAuth();
+    const { t } = useLanguage();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const [currentUser, setCurrentUser] = useState(user);
+
     useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await authAPI.getMe();
+                if (response.data.user) {
+                    console.log('[DEBUG] Fetched latest user profile:', response.data.user);
+                    setCurrentUser(response.data.user);
+                }
+            } catch (error) {
+                console.error('Error fetching profile:', error);
+            }
+        };
+        fetchProfile();
         fetchOrders();
-    }, []);
+    }, [user]);
 
     const fetchOrders = async () => {
         try {
@@ -23,7 +43,7 @@ const ClientDashboard = () => {
     };
 
     const getStatusStep = (status) => {
-        const steps = ['confirmed', 'in_manufacturing', 'ready_for_testing', 'uin_registered', 'ready_to_dispatch', 'dispatched', 'delivered'];
+        const steps = ['booking_confirmed', 'in_manufacturing', 'ready_for_testing', 'tested_successfully', 'uin_generated', 'uin_transferred_successfully', 'ready_to_dispatch', 'delivered'];
         return steps.indexOf(status);
     };
 
@@ -39,17 +59,17 @@ const ClientDashboard = () => {
         <div>
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Welcome, {user?.name}!</h1>
-                    <p className="page-subtitle">Track your drone orders and get support</p>
+                    <h1 className="page-title">{t('dashboard.welcome')}, {currentUser?.name || user?.name}!</h1>
+                    <p className="page-subtitle">{t('dashboard.subtitle')}</p>
                 </div>
             </div>
 
             {/* Order Stats */}
-            <div className="grid grid-cols-3 gap-lg" style={{ marginBottom: '32px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-lg" style={{ marginBottom: '32px' }}>
                 <div className="stat-card">
                     <div className="stat-icon">📋</div>
                     <div className="stat-content">
-                        <h3>Total Orders</h3>
+                        <h3>{t('dashboard.totalOrders')}</h3>
                         <div className="stat-value">{orders.length}</div>
                     </div>
                 </div>
@@ -57,7 +77,7 @@ const ClientDashboard = () => {
                 <div className="stat-card" style={{ borderLeftColor: '#4CAF50' }}>
                     <div className="stat-icon" style={{ background: '#E8F5E9', color: '#4CAF50' }}>✅</div>
                     <div className="stat-content">
-                        <h3>Delivered</h3>
+                        <h3>{t('dashboard.delivered')}</h3>
                         <div className="stat-value">
                             {orders.filter(o => o.status === 'delivered').length}
                         </div>
@@ -65,152 +85,131 @@ const ClientDashboard = () => {
                 </div>
 
                 <div className="stat-card" style={{ borderLeftColor: '#2196F3' }}>
-                    <div className="stat-icon" style={{ background: '#E3F2FD', color: '#2196F3' }}>🚁</div>
+                    <div className="stat-icon" style={{ background: '#E3F2FD', color: '#2196F3' }}><DroneIcon size={24} /></div>
                     <div className="stat-content">
-                        <h3>In Progress</h3>
+                        <h3>{t('dashboard.inProgress')}</h3>
                         <div className="stat-value">
                             {orders.filter(o => o.status !== 'delivered').length}
                         </div>
                     </div>
                 </div>
+
+                <div className="stat-card" style={{ borderLeftColor: '#FFD600' }}>
+                    <div className="stat-icon" style={{ background: '#FFFDE7', color: '#FFD600' }}>🆔</div>
+                    <div className="stat-content">
+                        <h3>EGCA ID</h3>
+                        <div className="stat-value" style={{ fontSize: '1.25rem' }}>
+                            {currentUser?.egcaId || user?.egcaId || 'Not Assigned'}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Orders List */}
+            {/* AMC/ASS Validity */}
+            {(currentUser?.hasAMC || currentUser?.hasASS) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-lg" style={{ marginBottom: '32px' }}>
+                    {currentUser?.hasAMC && (
+                        <div className="stat-card" style={{ borderLeftColor: getRemainingTimeLabel(currentUser.amcStartDate)?.color || '#2196F3', background: '#f8faff' }}>
+                             <div className="stat-icon" style={{ background: '#E3F2FD', color: getRemainingTimeLabel(currentUser.amcStartDate)?.color || '#2196F3' }}>🛡️</div>
+                             <div className="stat-content">
+                                 <h3 style={{ color: '#1a237e' }}>AMC (Annual Maintenance)</h3>
+                                 <div className="stat-value" style={{ fontSize: '1.2rem', color: getRemainingTimeLabel(currentUser.amcStartDate)?.color || '#2196F3' }}>
+                                     {getRemainingTimeLabel(currentUser.amcStartDate)?.label}
+                                 </div>
+                                 <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                                     Valid until: {new Date(new Date(currentUser.amcStartDate).setFullYear(new Date(currentUser.amcStartDate).getFullYear() + 1)).toLocaleDateString()}
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+                    {currentUser?.hasASS && (
+                        <div className="stat-card" style={{ borderLeftColor: getRemainingTimeLabel(currentUser.assStartDate)?.color || '#4CAF50', background: '#f8fffa' }}>
+                             <div className="stat-icon" style={{ background: '#E8F5E9', color: getRemainingTimeLabel(currentUser.assStartDate)?.color || '#4CAF50' }}>🛠️</div>
+                             <div className="stat-content">
+                                 <h3 style={{ color: '#00695c' }}>ASS (After Sales Support)</h3>
+                                 <div className="stat-value" style={{ fontSize: '1.2rem', color: getRemainingTimeLabel(currentUser.assStartDate)?.color || '#4CAF50' }}>
+                                     {getRemainingTimeLabel(currentUser.assStartDate)?.label}
+                                 </div>
+                                 <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                                     Valid until: {new Date(new Date(currentUser.assStartDate).setFullYear(new Date(currentUser.assStartDate).getFullYear() + 1)).toLocaleDateString()}
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Orders List & Timeline */}
             <div className="card" style={{ marginBottom: '24px' }}>
                 <div className="card-header">
-                    <h3 className="card-title">Your Orders</h3>
+                    <h3 className="card-title">{t('dashboard.yourOrders')}</h3>
+                    <Link to="/client/orders" className="btn btn-outline btn-sm">
+                        {t('dashboard.viewDetails')}
+                    </Link>
                 </div>
 
                 {orders.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px' }}>
-                        <p className="text-muted">No orders found</p>
+                        <p className="text-muted">{t('dashboard.noOrders')}</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {orders.map((order) => (
-                            <div key={order._id} style={{
-                                padding: '20px',
-                                background: '#f9f9f9',
-                                borderRadius: '12px',
-                                border: '1px solid #e0e0e0'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                    <div>
-                                        <h4 style={{ fontSize: '1.125rem', marginBottom: '4px' }}>
-                                            Order #{order.orderNumber}
-                                        </h4>
-                                        <p className="text-sm text-muted">
-                                            {order.quantity}x {order.modelNo || 'CS_KRISHI_10L'}
-                                        </p>
-                                    </div>
-                                    <span className={`badge ${order.status === 'delivered' ? 'badge-success' :
-                                            order.status === 'dispatched' ? 'badge-info' :
-                                                'badge-primary'
-                                        }`}>
-                                        {order.status?.replace(/_/g, ' ').toUpperCase()}
-                                    </span>
-                                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {orders.slice(0, 3).map((order) => { // Show max 3 recent orders
+                            const steps = ['booking_confirmed', 'in_manufacturing', 'ready_for_testing', 'tested_successfully', 'uin_generated', 'uin_transferred_successfully', 'ready_to_dispatch', 'delivered'];
+                            const currentStepIndex = getStatusStep(order.status);
+                            const progressPercent = (currentStepIndex / (steps.length - 1)) * 100;
 
-                                {/* Order Timeline */}
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    position: 'relative',
-                                    padding: '0 10px'
-                                }}>
-                                    {/* Progress Line */}
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: '15px',
-                                        left: '30px',
-                                        right: '30px',
-                                        height: '3px',
-                                        background: '#e0e0e0',
-                                        zIndex: 0
-                                    }}>
-                                        <div style={{
-                                            height: '100%',
-                                            background: '#4CAF50',
-                                            width: `${(getStatusStep(order.status) / 6) * 100}%`,
-                                            transition: 'width 0.3s'
-                                        }}></div>
-                                    </div>
-
-                                    {['Confirmed', 'Manufacturing', 'Testing', 'Registered', 'Ready', 'Dispatched', 'Delivered'].map((step, idx) => (
-                                        <div key={idx} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            zIndex: 1
-                                        }}>
-                                            <div style={{
-                                                width: '32px',
-                                                height: '32px',
-                                                borderRadius: '50%',
-                                                background: idx <= getStatusStep(order.status) ? '#4CAF50' : '#e0e0e0',
-                                                color: idx <= getStatusStep(order.status) ? '#fff' : '#9e9e9e',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 600
-                                            }}>
-                                                {idx <= getStatusStep(order.status) ? '✓' : idx + 1}
-                                            </div>
-                                            <span style={{
-                                                fontSize: '0.625rem',
-                                                marginTop: '4px',
-                                                color: idx <= getStatusStep(order.status) ? '#4CAF50' : '#9e9e9e',
-                                                textAlign: 'center',
-                                                maxWidth: '60px'
-                                            }}>
-                                                {step}
-                                            </span>
+                            return (
+                                <div key={order._id} style={{ padding: '0 10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div>
+                                            <h4 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>
+                                                {order.modelNo || 'Drone Order'} <span className="text-muted">#{order.orderNumber}</span>
+                                            </h4>
+                                            <p className="text-sm text-muted">
+                                                {new Date(order.createdAt).toLocaleDateString()}
+                                            </p>
                                         </div>
-                                    ))}
-                                </div>
+                                        <span className={`badge ${order.status === 'delivered' ? 'badge-success' : 'badge-primary'}`}>
+                                            {t(`status.${order.status}`) || order.status}
+                                        </span>
+                                    </div>
 
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'flex-end',
-                                    marginTop: '16px',
-                                    gap: '8px'
-                                }}>
-                                    <a href={`/client/orders/${order._id}`} className="btn btn-outline btn-sm">
-                                        View Details
-                                    </a>
+                                    {/* Vertical Order Timeline */}
+                                    <VerticalTimeline
+                                        steps={steps}
+                                        currentStatus={order.status}
+                                    />
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-lg">
-                <a href="/client/support" className="card" style={{ textDecoration: 'none' }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
+                <Link to="/client/support" className="card" style={{ textDecoration: 'none' }}>
                     <div style={{ textAlign: 'center', padding: '20px' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎧</div>
-                        <h4>Support</h4>
-                        <p className="text-sm text-muted">Raise a ticket or get help</p>
+                        <h4>{t('actions.support')}</h4>
+                        <p className="text-sm text-muted">{t('actions.supportDesc')}</p>
                     </div>
-                </a>
+                </Link>
 
-                <a href="/client/faq" className="card" style={{ textDecoration: 'none' }}>
+                <Link to="/client/faq" className="card" style={{ textDecoration: 'none' }}>
                     <div style={{ textAlign: 'center', padding: '20px' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>❓</div>
-                        <h4>FAQs</h4>
-                        <p className="text-sm text-muted">Common questions answered</p>
+                        <h4>{t('actions.faqs')}</h4>
+                        <p className="text-sm text-muted">{t('actions.faqsDesc')}</p>
                     </div>
-                </a>
+                </Link>
 
-                <a href="/client/service" className="card" style={{ textDecoration: 'none' }}>
+                <Link to="/client/service" className="card" style={{ textDecoration: 'none' }}>
                     <div style={{ textAlign: 'center', padding: '20px' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔧</div>
-                        <h4>Service</h4>
-                        <p className="text-sm text-muted">Maintenance & repairs</p>
+                        <h4>{t('actions.service')}</h4>
+                        <p className="text-sm text-muted">{t('actions.serviceDesc')}</p>
                     </div>
-                </a>
+                </Link>
             </div>
         </div>
     );

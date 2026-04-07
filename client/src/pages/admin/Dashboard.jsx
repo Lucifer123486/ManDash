@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formsAPI, dronesAPI, ordersAPI, usersAPI } from '../../services/api';
+import DroneIcon from '../../components/common/DroneIcon';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -55,20 +56,21 @@ const AdminDashboard = () => {
 
   return (
     <div>
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Admin Dashboard</h1>
-          <p className="page-subtitle">Welcome back! Here's an overview of your operations.</p>
+          <p className="page-subtitle">
+            Welcome back! Here's an overview of your operations.
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-primary">+ New Order</button>
-        </div>
+        {/* ❌ + New Order button REMOVED from dashboard */}
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats */}
       <div className="grid grid-cols-4 gap-lg" style={{ marginBottom: '32px' }}>
         <div className="stat-card">
-          <div className="stat-icon">🚁</div>
+          <div className="stat-icon"><DroneIcon size={32} color="#1a237e" /></div>
           <div className="stat-content">
             <h3>Total Drones</h3>
             <div className="stat-value">{stats.totalDrones}</div>
@@ -77,7 +79,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#4CAF50' }}>
-          <div className="stat-icon" style={{ background: '#E8F5E9', color: '#4CAF50' }}>📋</div>
+          <div className="stat-icon">📋</div>
           <div className="stat-content">
             <h3>Total Orders</h3>
             <div className="stat-value">{stats.totalOrders}</div>
@@ -86,7 +88,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#FF9800' }}>
-          <div className="stat-icon" style={{ background: '#FFF3E0', color: '#FF9800' }}>⏳</div>
+          <div className="stat-icon">⏳</div>
           <div className="stat-content">
             <h3>Pending Approvals</h3>
             <div className="stat-value">{stats.pendingApprovals}</div>
@@ -95,56 +97,51 @@ const AdminDashboard = () => {
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#2196F3' }}>
-          <div className="stat-icon" style={{ background: '#E3F2FD', color: '#2196F3' }}>👥</div>
+          <div className="stat-icon">👥</div>
           <div className="stat-content">
             <h3>Team</h3>
-            <div className="stat-value">{stats.totalStaff + stats.totalClients}</div>
-            <div className="stat-change">{stats.totalStaff} staff, {stats.totalClients} clients</div>
+            <div className="stat-value">
+              {stats.totalStaff + stats.totalClients}
+            </div>
+            <div className="stat-change">
+              {stats.totalStaff} staff, {stats.totalClients} clients
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Two Column Layout */}
+      {/* Orders + Approvals */}
       <div className="grid grid-cols-2 gap-lg">
         {/* Recent Orders */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Orders</h3>
-            <a href="/admin/orders" className="btn btn-ghost btn-sm">View All →</a>
+            <a href="/admin/orders">View All →</a>
           </div>
 
           {recentOrders.length === 0 ? (
-            <p className="text-muted">No orders yet</p>
+            <p>No orders yet</p>
           ) : (
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Status</th>
-                    <th>Qty</th>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map(order => (
+                  <tr key={order._id}>
+                    <td>{order.orderNumber}</td>
+                    <td>{order.customerName || order.customer?.name}</td>
+                    <td>{order.status}</td>
+                    <td>{order.quantity}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((order) => (
-                    <tr key={order._id}>
-                      <td>{order.orderNumber}</td>
-                      <td>{order.customerName || order.customer?.name}</td>
-                      <td>
-                        <span className={`badge badge-${order.status === 'delivered' ? 'success' :
-                            order.status === 'dispatched' ? 'info' :
-                              order.status === 'confirmed' ? 'primary' : 'warning'
-                          }`}>
-                          {order.status?.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td>{order.quantity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
@@ -155,59 +152,83 @@ const AdminDashboard = () => {
             <a href="/admin/approvals" className="btn btn-ghost btn-sm">View All →</a>
           </div>
 
-          {pendingForms.length === 0 ? (
-            <p className="text-muted">No pending approvals</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {pendingForms.map((form) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {pendingForms.length === 0 ? (
+              <p className="text-muted">No pending approvals</p>
+            ) : (
+              pendingForms.map(form => (
                 <div key={form._id} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                  background: '#FFF8E1',
-                  borderRadius: '8px',
-                  border: '1px solid #FFE082'
+                  padding: '16px',
+                  background: '#f9f9f9',
+                  borderRadius: '12px',
+                  border: '1px solid #eee'
                 }}>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{form.formSchema?.formName}</div>
-                    <div className="text-sm text-muted">
-                      {form.drone?.serialNo} • {form.submittedBy?.name}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{form.formSchema?.formName}</h4>
+                      <p className="text-xs text-muted" style={{ marginTop: '2px' }}>
+                        {form.drone?.serialNo || 'General'} • {new Date(form.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="badge badge-warning" style={{ fontSize: '10px' }}>Pending</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="text-xs">
+                      <span className="text-muted">By:</span> <strong>{form.submittedBy?.name || 'Staff'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a href={`/submission/${form._id}`} className="btn btn-outline btn-xs">View</a>
+                      <button 
+                        onClick={async () => {
+                          const remarks = prompt('Enter rejection reason:');
+                          if (!remarks) return;
+                          try {
+                            await formsAPI.updateSubmissionStatus(form._id, 'rejected', remarks);
+                            fetchDashboardData();
+                          } catch (err) {
+                            alert('Error rejecting form');
+                          }
+                        }}
+                        className="btn btn-outline btn-xs" 
+                        style={{ color: '#F44336', borderColor: '#F44336' }}
+                      >
+                        Reject
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          if (!window.confirm('Approve this submission?')) return;
+                          try {
+                            await formsAPI.updateSubmissionStatus(form._id, 'approved');
+                            
+                            // Optional: Update workflow if order exists
+                            if (form.drone && form.formSchema?.workflowOrder) {
+                              const workflowMap = {
+                                1: 'material_entry', 2: 'material_inspection', 3: 'inventory_update',
+                                4: 'material_distribution', 5: 'soldering', 6: 'mechanical_assembly',
+                                7: 'payload_assembly', 8: 'electronic_assembly', 9: 'calibration',
+                                10: 'flight_test', 11: 'packaging', 12: 'dispatch', 13: 'delivered'
+                              };
+                              const nextStatus = workflowMap[form.formSchema.workflowOrder];
+                              if (nextStatus) {
+                                await dronesAPI.updateStatus(form.drone._id, { manufacturingStatus: nextStatus });
+                              }
+                            }
+                            fetchDashboardData();
+                          } catch (err) {
+                            alert('Error approving form');
+                          }
+                        }}
+                        className="btn btn-success btn-xs"
+                      >
+                        Approve
+                      </button>
                     </div>
                   </div>
-                  <a href={`/submission/${form._id}`} className="btn btn-primary btn-sm">Review</a>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Manufacturing Workflow Overview */}
-      <div className="card" style={{ marginTop: '24px' }}>
-        <div className="card-header">
-          <h3 className="card-title">Manufacturing Workflow Steps</h3>
-        </div>
-        <div className="workflow-timeline" style={{ justifyContent: 'space-between' }}>
-          {[
-            { label: 'Material Entry', icon: '📦' },
-            { label: 'Inspection', icon: '🔍' },
-            { label: 'Distribution', icon: '📤' },
-            { label: 'Soldering', icon: '🔧' },
-            { label: 'Mechanical', icon: '⚙️' },
-            { label: 'Payload', icon: '🎯' },
-            { label: 'Electronic', icon: '💡' },
-            { label: 'Calibration', icon: '📐' },
-            { label: 'Flight Test', icon: '✈️' },
-            { label: 'Packaging', icon: '📦' },
-            { label: 'Dispatch', icon: '🚚' },
-            { label: 'COC', icon: '📜' }
-          ].map((step, index) => (
-            <div key={index} className="workflow-step">
-              <div className="workflow-step-icon">{step.icon}</div>
-              <span className="workflow-step-label">{step.label}</span>
-            </div>
-          ))}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

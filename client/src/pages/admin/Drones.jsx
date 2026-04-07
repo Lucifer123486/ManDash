@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { dronesAPI } from '../../services/api';
+import { Trash2 } from 'lucide-react';
+import DroneIcon from '../../components/common/DroneIcon';
+import { formatSerialNo } from '../../utils/serialFormatter';
 
 const Drones = () => {
     const [drones, setDrones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+
     const [formData, setFormData] = useState({
         serialNo: '',
         modelNo: 'CS_KRISHI_10L',
@@ -26,15 +31,53 @@ const Drones = () => {
         }
     };
 
+    /* ================= SERIAL AUTO INCREMENT ================= */
+
+    const generateSerialNumber = () => {
+        if (drones.length === 0) return 'CSKRISHI001';
+
+        const numbers = drones
+            .map(d => d.serialNo)
+            .filter(sn => sn?.startsWith('CSKRISHI'))
+            .map(sn => {
+                const match = sn.match(/\d+$/);
+                return match ? parseInt(match[0], 10) : 0;
+            })
+            .filter(n => n > 0);
+
+        const next = numbers.length ? Math.max(...numbers) + 1 : 1;
+        return `CSKRISHI${String(next).padStart(3, '0')}`;
+    };
+
+    const openModal = () => {
+        setFormData({
+            serialNo: generateSerialNumber(),
+            modelNo: 'CS_KRISHI_10L',
+            manufacturingStatus: 'material_entry'
+        });
+        setShowModal(true);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             await dronesAPI.create(formData);
             fetchDrones();
             setShowModal(false);
-            setFormData({ serialNo: '', modelNo: 'CS_KRISHI_10L', manufacturingStatus: 'material_entry' });
         } catch (error) {
             alert(error.response?.data?.message || 'Error creating drone');
+        }
+    };
+
+    const handleDelete = async (droneId, droneSerial) => {
+        const password = window.prompt(`Please enter your password to delete drone ${droneSerial}:`);
+        if (!password) return;
+
+        try {
+            await dronesAPI.delete(droneId, password);
+            fetchDrones();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error deleting drone');
         }
     };
 
@@ -58,6 +101,7 @@ const Drones = () => {
     };
 
     const getStatusLabel = (status) => {
+        if (status === 'delivered') return 'Completed';
         return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
 
@@ -76,7 +120,7 @@ const Drones = () => {
                     <h1 className="page-title">All Drones</h1>
                     <p className="page-subtitle">Track manufacturing progress for all drones</p>
                 </div>
-                <button onClick={() => setShowModal(true)} className="btn btn-primary">
+                <button onClick={openModal} className="btn btn-primary">
                     + Add Drone
                 </button>
             </div>
@@ -84,21 +128,23 @@ const Drones = () => {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-lg" style={{ marginBottom: '24px' }}>
                 <div className="stat-card">
-                    <div className="stat-icon">🚁</div>
+                    <div className="stat-icon"><DroneIcon size={24} color="#1a237e" /></div>
                     <div className="stat-content">
                         <h3>Total Drones</h3>
                         <div className="stat-value">{drones.length}</div>
                     </div>
                 </div>
+
                 <div className="stat-card" style={{ borderLeftColor: '#FF9800' }}>
                     <div className="stat-icon" style={{ background: '#FFF3E0', color: '#FF9800' }}>🏭</div>
                     <div className="stat-content">
                         <h3>In Manufacturing</h3>
                         <div className="stat-value">
-                            {drones.filter(d => d.manufacturingStatus && !['packaging', 'dispatch', 'delivered'].includes(d.manufacturingStatus)).length}
+                            {drones.filter(d => !['packaging', 'dispatch', 'delivered'].includes(d.manufacturingStatus)).length}
                         </div>
                     </div>
                 </div>
+
                 <div className="stat-card" style={{ borderLeftColor: '#4CAF50' }}>
                     <div className="stat-icon" style={{ background: '#E8F5E9', color: '#4CAF50' }}>📦</div>
                     <div className="stat-content">
@@ -108,10 +154,11 @@ const Drones = () => {
                         </div>
                     </div>
                 </div>
+
                 <div className="stat-card" style={{ borderLeftColor: '#2196F3' }}>
                     <div className="stat-icon" style={{ background: '#E3F2FD', color: '#2196F3' }}>✅</div>
                     <div className="stat-content">
-                        <h3>Delivered</h3>
+                        <h3>Completed</h3>
                         <div className="stat-value">
                             {drones.filter(d => d.manufacturingStatus === 'delivered').length}
                         </div>
@@ -119,67 +166,67 @@ const Drones = () => {
                 </div>
             </div>
 
-            {/* Drones Grid */}
+            {/* Drone Cards */}
             <div className="grid grid-cols-3 gap-lg">
-                {drones.map((drone) => (
+                {drones.map(drone => (
                     <div key={drone._id} className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                            <div>
-                                <h3 style={{ fontSize: '1.125rem', marginBottom: '4px' }}>{drone.serialNo}</h3>
-                                <p className="text-sm text-muted">{drone.modelNo}</p>
-                            </div>
-                            <span style={{
-                                padding: '4px 12px',
-                                borderRadius: '12px',
-                                fontSize: '0.625rem',
-                                fontWeight: 600,
-                                background: getStatusColor(drone.manufacturingStatus) + '20',
-                                color: getStatusColor(drone.manufacturingStatus)
-                            }}>
-                                {getStatusLabel(drone.manufacturingStatus)}
-                            </span>
-                        </div>
+                        <h3>{formatSerialNo(drone.serialNo)}</h3>
+                        <p className="text-muted">{drone.modelNo}</p>
 
-                        {/* Progress Bar */}
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{
-                                height: '6px',
-                                background: '#e0e0e0',
-                                borderRadius: '3px',
-                                overflow: 'hidden'
-                            }}>
-                                <div style={{
-                                    height: '100%',
-                                    background: getStatusColor(drone.manufacturingStatus),
-                                    width: `${Math.min(100, (Object.keys({
-                                        material_entry: 8, material_inspection: 16, inventory_update: 24,
-                                        material_distribution: 32, soldering: 40, mechanical_assembly: 48,
-                                        payload_assembly: 56, electronic_assembly: 64, calibration: 72,
-                                        flight_test: 80, packaging: 90, dispatch: 95, delivered: 100
-                                    })[drone.manufacturingStatus] || 0))}%`,
-                                    transition: 'width 0.3s'
-                                }}></div>
+                        <div style={{ marginTop: '10px', marginBottom: '10px' }}>
+                            <div style={{ height: '6px', background: '#e0e0e0', borderRadius: '3px' }}>
+                                <div
+                                    style={{
+                                        height: '100%',
+                                        width: `${{
+                                            material_entry: 8,
+                                            material_inspection: 16,
+                                            inventory_update: 24,
+                                            material_distribution: 32,
+                                            soldering: 40,
+                                            mechanical_assembly: 48,
+                                            payload_assembly: 56,
+                                            electronic_assembly: 64,
+                                            calibration: 72,
+                                            flight_test: 80,
+                                            packaging: 85,
+                                            delivery_challan: 92,
+                                            dispatch: 97,
+                                            delivered: 100
+                                        }[drone.manufacturingStatus] || 0}%`,
+                                        background: getStatusColor(drone.manufacturingStatus)
+                                    }}
+                                />
                             </div>
                         </div>
 
-                        {/* Details */}
-                        <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '16px' }}>
-                            <p>Created: {new Date(drone.createdAt).toLocaleDateString()}</p>
-                            {drone.order && <p>Order: #{drone.order.orderNumber}</p>}
-                        </div>
+                        <span style={{
+                            fontSize: '12px',
+                            color: getStatusColor(drone.manufacturingStatus)
+                        }}>
+                            {getStatusLabel(drone.manufacturingStatus)}
+                        </span>
 
-                        <a href={`/admin/drones/${drone._id}`} className="btn btn-outline btn-sm" style={{ width: '100%' }}>
-                            View Workflow →
-                        </a>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <Link
+                                to={`/admin/drones/${drone._id}`}
+                                className="btn btn-outline btn-sm"
+                                style={{ flex: 1, marginTop: '12px', display: 'block', textAlign: 'center' }}
+                            >
+                                View Workflow →
+                            </Link>
+                            <button
+                                onClick={() => handleDelete(drone._id, drone.serialNo)}
+                                className="btn btn-outline btn-sm"
+                                style={{ marginTop: '12px', padding: '0 12px', borderColor: '#f44336', color: '#f44336', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Delete Drone"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
-
-            {drones.length === 0 && (
-                <div className="card" style={{ textAlign: 'center', padding: '60px' }}>
-                    <p className="text-muted">No drones yet. Create your first drone to start manufacturing.</p>
-                </div>
-            )}
 
             {/* Add Drone Modal */}
             {showModal && (
@@ -189,31 +236,20 @@ const Drones = () => {
                             <h3 className="modal-title">Add New Drone</h3>
                             <button onClick={() => setShowModal(false)} className="modal-close">×</button>
                         </div>
+
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label required">Serial Number</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="e.g., CSKRISHI_001"
-                                        value={formData.serialNo}
-                                        onChange={(e) => setFormData({ ...formData, serialNo: e.target.value })}
-                                        required
-                                    />
+                                    <label className="form-label">Serial Number</label>
+                                    <input className="form-input" value={formData.serialNo} disabled />
                                 </div>
+
                                 <div className="form-group">
-                                    <label className="form-label required">Model</label>
-                                    <select
-                                        className="form-select"
-                                        value={formData.modelNo}
-                                        onChange={(e) => setFormData({ ...formData, modelNo: e.target.value })}
-                                    >
-                                        <option value="CS_KRISHI_10L">CS_KRISHI_10L</option>
-                                        <option value="CS_KRISHI_16L">CS_KRISHI_16L</option>
-                                    </select>
+                                    <label className="form-label">Model</label>
+                                    <input className="form-input" value={formData.modelNo} disabled />
                                 </div>
                             </div>
+
                             <div className="modal-footer">
                                 <button type="button" onClick={() => setShowModal(false)} className="btn btn-outline">
                                     Cancel

@@ -39,7 +39,9 @@ exports.register = async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                egcaId: user.egcaId,
+                staffType: user.staffType
             }
         });
     } catch (error) {
@@ -102,7 +104,9 @@ exports.login = async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                egcaId: user.egcaId,
+                staffType: user.staffType
             }
         });
     } catch (error) {
@@ -171,6 +175,49 @@ exports.logout = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error logging out',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Verify signature (password) for form verification
+// @route   POST /api/auth/verify-signature
+// @access  Private
+exports.verifySignature = async (req, res) => {
+    try {
+        const { userId, password } = req.body;
+
+        if (!userId || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide user ID and password'
+            });
+        }
+
+        const user = await User.findById(userId).select('+password');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid signature password'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Signature verified'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error verifying signature',
             error: error.message
         });
     }

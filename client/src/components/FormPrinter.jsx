@@ -1,5 +1,7 @@
 import { useRef, forwardRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import CompanyLogo from './common/CompanyLogo';
+import FormHeader from './common/FormHeader';
 
 // Printable form component
 const PrintableForm = forwardRef(({ submission, schema }, ref) => {
@@ -7,31 +9,13 @@ const PrintableForm = forwardRef(({ submission, schema }, ref) => {
 
     return (
         <div ref={ref} className="print-container" style={{ padding: '20px' }}>
-            {/* Header */}
-            <div className="print-header">
-                <div className="print-logo">
-                    <div style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: '50%',
-                        background: '#FFD600',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 'bold',
-                        fontSize: '1.5rem'
-                    }}>
-                        CS
-                    </div>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>CEREBROSPARK INNOVATIONS</h2>
-                        <p style={{ margin: 0, fontSize: '0.875rem', color: '#666' }}>Private Limited</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Form Title */}
-            <h1 className="print-title">{schema.formName}</h1>
+            <FormHeader
+                formName={schema.formName}
+                modelNo={submission.headerData?.modelNo || submission.drone?.modelNo}
+                serialNo={submission.headerData?.serialNo || submission.drone?.serialNo}
+                issueNo={submission.headerData?.issueNo}
+                date={new Date(submission.createdAt).toLocaleDateString()}
+            />
 
             {/* Header Data Table */}
             <table className="print-table">

@@ -163,9 +163,13 @@ const Forms = () => {
                             >
                                 Fill Form
                             </Link>
-                            <button className="btn btn-outline btn-sm">
+                            <Link
+                                to={`/staff/forms/${schema.formCode}?preview=true`}
+                                className="btn btn-outline btn-sm"
+                                style={{ flex: 1, textAlign: 'center' }}
+                            >
                                 Preview
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 ))}

@@ -42,10 +42,33 @@ const droneSchema = new mongoose.Schema({
             'calibration',
             'flight_test',
             'packaging',
+            'delivery_challan',
+            'hash_code',
+            'tax_invoice',
             'dispatch',
             'delivered'
         ],
         default: 'material_entry'
+    },
+    // Delivery Challan PDF URL
+    deliveryChallan: {
+        type: String
+    },
+    // Hash Code File URL
+    hashCode: {
+        type: String
+    },
+    // Tax Invoice File URL
+    taxInvoice: {
+        type: String
+    },
+    // D2 Form PDF URL
+    d2Form: {
+        type: String
+    },
+    // D3 Form PDF URL
+    d3Form: {
+        type: String
     },
     // Completed workflow steps
     completedSteps: [{
@@ -132,6 +155,15 @@ const droneSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    // EGCA Details
+    egcaId: {
+        type: String,
+        default: ''
+    },
+    egcaPassword: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

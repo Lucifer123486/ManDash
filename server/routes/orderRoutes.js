@@ -7,7 +7,8 @@ const {
     updateOrderStatus,
     confirmBooking,
     addDocument,
-    getOrderTracking
+    getOrderTracking,
+    deleteOrder
 } = require('../controllers/orderController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -18,7 +19,8 @@ router.route('/')
     .post(authorize('admin', 'staff'), createOrder);
 
 router.route('/:id')
-    .get(getOrder);
+    .get(getOrder)
+    .delete(authorize('admin', 'staff'), deleteOrder);
 
 router.put('/:id/status', authorize('admin', 'staff'), updateOrderStatus);
 router.put('/:id/confirm', authorize('admin', 'staff'), confirmBooking);

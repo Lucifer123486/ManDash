@@ -28,8 +28,8 @@ const userSchema = new mongoose.Schema({
     // Staff type for workflow access control
     staffType: {
         type: String,
-        enum: ['general', 'manufacturing', 'quality_inspector'],
-        default: 'general'
+        enum: ['service_engineer', 'production_manager', 'assembly_line_incharge', 'quality_inspector', 'packaging_dispatch_operator', 'director_am', 'call_centre_staff', 'sales_staff'],
+        default: 'service_engineer'
     },
     phone: {
         type: String,
@@ -65,6 +65,37 @@ const userSchema = new mongoose.Schema({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+    certificate10th: {
+        type: String // URL or Base64
+    },
+    aadharCard: {
+        type: String // URL or Base64
+    },
+    idProof: {
+        type: String // URL or Base64 (Driving license/passport/voter id card/rationcard)
+    },
+    egcaId: {
+        type: String,
+        trim: true
+    },
+    hasAMC: {
+        type: Boolean,
+        default: false
+    },
+    hasASS: {
+        type: Boolean,
+        default: false
+    },
+    amcStartDate: {
+        type: Date
+    },
+    assStartDate: {
+        type: Date
+    },
+    freeServicesUsed: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true

@@ -1,7 +1,29 @@
 const FormSchema = require('../models/FormSchema');
 const FormSubmission = require('../models/FormSubmission');
 const Drone = require('../models/Drone');
+const FormAccessRequest = require('../models/FormAccessRequest');
 const notificationService = require('../services/notificationService');
+
+// Helper to map form codes to manufacturing status
+const mapFormCodeToStatus = (formCode) => {
+    const mapping = {
+        'PO': 'material_entry',
+        'WORK_ORDER': 'material_entry',
+        'MRF': 'material_inspection',
+        'QA_SOLDERING': 'soldering',
+        'QA_MECHANICAL': 'mechanical_assembly',
+        'QA_ELECTRONIC': 'electronic_assembly',
+        'QA_PAYLOAD': 'payload_assembly',
+        'QA_CALIBRATION': 'calibration',
+        'FLIGHT_TEST': 'flight_test',
+        'PACKAGING': 'packaging',
+        'DELIVERY_CHALLAN': 'delivery_challan',
+        'DISPATCH': 'dispatch',
+        'CERTIFICATE': 'delivered',
+        'MAINTENANCE_REPLACEMENT': 'maintenance'
+    };
+    return mapping[formCode] || null;
+};
 
 // @desc    Create form schema (Admin only)
 // @route   POST /api/forms/schema
@@ -115,7 +137,7 @@ exports.getFormSchemaByCode = async (req, res) => {
 // @access  Private
 exports.submitForm = async (req, res) => {
     try {
-        const { formSchemaId, droneId, orderId, headerData, formData, footerData } = req.body;
+        const { formSchemaId, droneId, orderId, headerData, formData, footerData, status = 'submitted' } = req.body;
 
         // Validate form schema exists
         const schema = await FormSchema.findById(formSchemaId);
@@ -126,21 +148,45 @@ exports.submitForm = async (req, res) => {
             });
         }
 
-        // Create submission
-        const submission = await FormSubmission.create({
-            formSchema: formSchemaId,
-            drone: droneId,
-            order: orderId,
-            submittedBy: req.user._id,
-            headerData,
-            formData,
-            footerData,
-            status: 'submitted'
-        });
+        let submission;
 
-        // Update drone with the form submission
-        if (droneId) {
-            await Drone.findByIdAndUpdate(droneId, {
+        // Check if a draft already exists for this user, drone, and schema
+        if (status === 'draft' || status === 'submitted') {
+            const existingDraft = await FormSubmission.findOne({
+                formSchema: formSchemaId,
+                drone: droneId,
+                submittedBy: req.user._id,
+                status: 'draft'
+            });
+
+            if (existingDraft) {
+                // Update existing draft
+                existingDraft.headerData = headerData;
+                existingDraft.formData = formData;
+                existingDraft.footerData = footerData;
+                existingDraft.status = status;
+                submission = await existingDraft.save();
+            }
+        }
+
+        if (!submission) {
+            // Create submission
+            submission = await FormSubmission.create({
+                formSchema: formSchemaId,
+                drone: droneId,
+                order: orderId,
+                submittedBy: req.user._id,
+                headerData,
+                formData,
+                footerData,
+                status
+            });
+        }
+
+        // Only update drone and send notifications if status is 'submitted'
+        if (status === 'submitted' && droneId) {
+            const nextStatus = mapFormCodeToStatus(schema.formCode);
+            const updatePayload = {
                 $push: {
                     forms: submission._id,
                     completedSteps: {
@@ -150,12 +196,18 @@ exports.submitForm = async (req, res) => {
                         formSubmission: submission._id
                     }
                 }
-            });
-        }
+            };
 
-        // Send notification if form requires approval
-        if (schema.requiresApproval) {
-            await notificationService.notifyFormSubmission(submission, schema);
+            if (nextStatus) {
+                updatePayload.manufacturingStatus = nextStatus;
+            }
+
+            await Drone.findByIdAndUpdate(droneId, updatePayload);
+
+            // Send notification if form requires approval
+            if (schema.requiresApproval) {
+                await notificationService.notifyFormSubmission(submission, schema);
+            }
         }
 
         res.status(201).json({
@@ -176,7 +228,7 @@ exports.submitForm = async (req, res) => {
 // @access  Private
 exports.getFormSubmissions = async (req, res) => {
     try {
-        const { formSchemaId, droneId, status, page = 1, limit = 20 } = req.query;
+        const { formSchemaId, droneId, status, formCode, page = 1, limit = 20 } = req.query;
 
         let query = {};
 
@@ -184,16 +236,32 @@ exports.getFormSubmissions = async (req, res) => {
         if (droneId) query.drone = droneId;
         if (status) query.status = status;
 
-        // If not admin, only show own submissions
+        // NEW: Handle formCode in query
+        if (formCode) {
+            const schema = await FormSchema.findOne({ formCode });
+            if (schema) query.formSchema = schema._id;
+        }
+
+        // If not admin, restrict to own submissions UNLESS it's a shared form (like MAINTENANCE_REPLACEMENT)
+        // OR if the query is for a specific drone (for team visibility in workflow/MPR)
         if (req.user.role !== 'admin') {
-            query.submittedBy = req.user._id;
+            const maintenanceSchema = await FormSchema.findOne({ formCode: 'MAINTENANCE_REPLACEMENT' });
+            const maintenanceId = maintenanceSchema?._id.toString();
+            
+            const isSharedView = droneId || 
+                               formCode === 'MAINTENANCE_REPLACEMENT' || 
+                               (query.formSchema && query.formSchema.toString() === maintenanceId);
+
+            if (!isSharedView) {
+                query.submittedBy = req.user._id;
+            }
         }
 
         const submissions = await FormSubmission.find(query)
             .populate('formSchema', 'formName formCode')
             .populate('drone', 'serialNo modelNo')
             .populate('submittedBy', 'name email')
-            .sort('-createdAt')
+            .sort({ 'formSchema.workflowOrder': 1, 'createdAt': -1 })
             .skip((page - 1) * limit)
             .limit(parseInt(limit));
 
@@ -295,7 +363,7 @@ exports.getDroneSubmissions = async (req, res) => {
         const submissions = await FormSubmission.find({ drone: req.params.droneId })
             .populate('formSchema', 'formName formCode workflowOrder category')
             .populate('submittedBy', 'name')
-            .sort('formSchema.workflowOrder');
+            .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -306,6 +374,227 @@ exports.getDroneSubmissions = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching drone submissions',
+            error: error.message
+        });
+    }
+};
+
+/* ================= ACCESS REQUESTS ================= */
+
+// @desc    Request bulk access to forms
+// @route   POST /api/forms/access-request/bulk
+// @access  Private
+exports.requestBulkAccess = async (req, res) => {
+    try {
+        const { droneId, formCodes } = req.body;
+
+        if (!formCodes || !Array.isArray(formCodes)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide an array of form codes'
+            });
+        }
+
+        const requests = [];
+        for (const formCode of formCodes) {
+            try {
+                const request = await FormAccessRequest.create({
+                    staff: req.user._id,
+                    drone: droneId,
+                    formCode
+                });
+                requests.push(request);
+            } catch (err) {
+                // Ignore duplicates in bulk request
+                if (err.code !== 11000) throw err;
+            }
+        }
+
+        res.status(201).json({
+            success: true,
+            data: requests
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error creating bulk access requests',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Request access to fill a form
+// @route   POST /api/forms/access-request
+// @access  Private
+exports.requestFormAccess = async (req, res) => {
+    try {
+        const { droneId, formCode } = req.body;
+
+        const request = await FormAccessRequest.create({
+            staff: req.user._id,
+            drone: droneId,
+            formCode
+        });
+
+        res.status(201).json({
+            success: true,
+            data: request
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Access already requested for this form'
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: 'Error creating access request',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get all form access requests (Admin Only)
+// @route   GET /api/forms/access-requests
+// @access  Private/Admin
+exports.getAccessRequests = async (req, res) => {
+    try {
+        const { status } = req.query;
+        let query = {};
+        if (status) query.status = status;
+
+        const requests = await FormAccessRequest.find(query)
+            .populate('staff', 'name email role')
+            .populate('drone', 'serialNo modelNo')
+            .sort('-createdAt');
+
+        res.status(200).json({
+            success: true,
+            count: requests.length,
+            data: requests
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching access requests',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Approve/Reject all pending access requests (Admin Only)
+// @route   PUT /api/forms/access-requests/bulk
+// @access  Private/Admin
+exports.bulkUpdateAccessRequests = async (req, res) => {
+    try {
+        const { ids, status, remarks } = req.body;
+
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide an array of request IDs'
+            });
+        }
+
+        const result = await FormAccessRequest.updateMany(
+            { _id: { $in: ids } },
+            {
+                status,
+                remarks,
+                approvedBy: req.user._id,
+                approvedAt: new Date()
+            }
+        );
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error updating bulk access requests',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Approve/Reject access request (Admin Only)
+// @route   PUT /api/forms/access-request/:id
+// @access  Private/Admin
+exports.updateAccessRequest = async (req, res) => {
+    try {
+        const { status, remarks } = req.body;
+
+        const request = await FormAccessRequest.findByIdAndUpdate(
+            req.params.id,
+            {
+                status,
+                remarks,
+                approvedBy: req.user._id,
+                approvedAt: new Date()
+            },
+            { new: true }
+        );
+
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                message: 'Request not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: request
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error updating access request',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Check if user has access to a specific form for a drone
+// @route   GET /api/forms/check-access/:droneId/:formCode
+// @access  Private
+exports.checkFormAccess = async (req, res) => {
+    try {
+        // Admins have access to everything
+        if (req.user.role === 'admin') {
+            return res.status(200).json({
+                success: true,
+                hasAccess: true,
+                status: 'approved'
+            });
+        }
+
+        const request = await FormAccessRequest.findOne({
+            staff: req.user._id,
+            drone: req.params.droneId,
+            formCode: req.params.formCode
+        });
+
+        if (!request) {
+            return res.status(200).json({
+                success: true,
+                hasAccess: false,
+                status: 'none'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            hasAccess: request.status === 'approved',
+            status: request.status
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error checking form access',
             error: error.message
         });
     }

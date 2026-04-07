@@ -1,0 +1,7 @@
+[updateUser error] ValidationError: Validation failed: staffType: `sales_staff` is not a valid enum value for path `staffType`.
+    at updateValidators (D:\ManDashProduction\ManDash\server\node_modules\mongoose\lib\helpers\updateValidators.js:186:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async model.Query.validate (D:\ManDashProduction\ManDash\server\node_modules\mongoose\lib\query.js:4145:5)
+    at async model.Query._findOneAndUpdate (D:\ManDashProduction\ManDash\server\node_modules\mongoose\lib\query.js:3540:5)
+    at async model.Query.exec (D:\ManDashProduction\ManDash\server\node_modules\mongoose\lib\query.js:4652:63)
+    at async exports.updateUser (D:\ManDashProduction\ManDash\server\controllers\userController.js:205:22)

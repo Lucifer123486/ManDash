@@ -62,7 +62,7 @@ const sendSMS = async (phoneNumber, templateId, variables = {}) => {
  */
 const sendQuickSMS = async (phoneNumber, message) => {
     const templateId = process.env.MSG91_DEFAULT_TEMPLATE_ID;
-    
+
     if (!templateId) {
         console.log('⚠️ MSG91_DEFAULT_TEMPLATE_ID not configured');
         // Fallback: Just log the message
@@ -80,13 +80,13 @@ const sendQuickSMS = async (phoneNumber, message) => {
 const sendOrderStatusSMS = async (phoneNumber, orderNumber, status, customerName) => {
     // Map status to template IDs (you'll need to create these in MSG91)
     const templateMap = {
-        pending: process.env.MSG91_TEMPLATE_ORDER_PENDING,
-        confirmed: process.env.MSG91_TEMPLATE_ORDER_CONFIRMED,
+        booking_confirmed: process.env.MSG91_TEMPLATE_ORDER_PENDING,
         in_manufacturing: process.env.MSG91_TEMPLATE_ORDER_MANUFACTURING,
         ready_for_testing: process.env.MSG91_TEMPLATE_ORDER_TESTING,
-        uin_registered: process.env.MSG91_TEMPLATE_ORDER_UIN,
+        tested_successfully: process.env.MSG91_TEMPLATE_ORDER_TESTED,
+        uin_generated: process.env.MSG91_TEMPLATE_ORDER_UIN,
+        uin_transferred_successfully: process.env.MSG91_TEMPLATE_ORDER_UIN_TRANSFERRED,
         ready_to_dispatch: process.env.MSG91_TEMPLATE_ORDER_DISPATCH,
-        dispatched: process.env.MSG91_TEMPLATE_ORDER_SHIPPED,
         delivered: process.env.MSG91_TEMPLATE_ORDER_DELIVERED
     };
 
@@ -94,14 +94,14 @@ const sendOrderStatusSMS = async (phoneNumber, orderNumber, status, customerName
 
     // Status messages for logging/fallback
     const messages = {
-        pending: `Dear ${customerName}, your order ${orderNumber} has been received. We will confirm it shortly. - Cerebrospark`,
-        confirmed: `Dear ${customerName}, your order ${orderNumber} is confirmed! Manufacturing will begin soon. - Cerebrospark`,
+        booking_confirmed: `Dear ${customerName}, your order ${orderNumber} is confirmed! Booking is confirmed. - Cerebrospark`,
         in_manufacturing: `Dear ${customerName}, great news! Your drone (Order: ${orderNumber}) is now in manufacturing. - Cerebrospark`,
-        ready_for_testing: `Dear ${customerName}, your drone (Order: ${orderNumber}) is ready for quality testing. - Cerebrospark`,
-        uin_registered: `Dear ${customerName}, your drone (Order: ${orderNumber}) has been registered with DGCA successfully. - Cerebrospark`,
+        ready_for_testing: `Dear ${customerName}, your drone (Order: ${orderNumber}) is ready for quality testing phase. - Cerebrospark`,
+        tested_successfully: `Dear ${customerName}, your drone (Order: ${orderNumber}) has been tested successfully! - Cerebrospark`,
+        uin_generated: `Dear ${customerName}, UIN for your drone (Order: ${orderNumber}) has been generated successfully. - Cerebrospark`,
+        uin_transferred_successfully: `Dear ${customerName}, UIN for your drone (Order: ${orderNumber}) has been transferred successfully. - Cerebrospark`,
         ready_to_dispatch: `Dear ${customerName}, your drone (Order: ${orderNumber}) is packed and ready for dispatch! - Cerebrospark`,
-        dispatched: `Dear ${customerName}, your order ${orderNumber} has been dispatched! Track your delivery. - Cerebrospark`,
-        delivered: `Dear ${customerName}, your drone (Order: ${orderNumber}) has been delivered. Thank you for choosing Cerebrospark!`
+        delivered: `Dear ${customerName}, your drone (Order: ${orderNumber}) has been received and delivered. Thank you! - Cerebrospark`
     };
 
     const message = messages[status];

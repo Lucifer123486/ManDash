@@ -8,5 +8,6 @@ router.post('/login', login);
 router.get('/me', protect, getMe);
 router.put('/fcm-token', protect, updateFcmToken);
 router.post('/logout', protect, logout);
+router.post('/verify-signature', protect, require('../controllers/authController').verifySignature);
 
 module.exports = router;

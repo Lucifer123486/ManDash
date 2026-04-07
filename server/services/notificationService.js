@@ -141,14 +141,14 @@ const notifyOrderStatus = async (order, status) => {
 
         // Notification messages for each status
         const notificationMap = {
-            pending: { check: null, title: 'Order Received', body: `Your order ${order.orderNumber} has been received and is pending confirmation` },
-            confirmed: { check: 'orderConfirmed', title: 'Order Confirmed', body: `Your order ${order.orderNumber} has been confirmed. Manufacturing will begin soon.` },
+            booking_confirmed: { check: 'orderConfirmed', title: 'Order Confirmed', body: `Your order ${order.orderNumber} has been confirmed. Booking is confirmed!` },
             in_manufacturing: { check: 'inManufacturing', title: 'Manufacturing Started', body: `Great news! Your drone is now in manufacturing process` },
-            ready_for_testing: { check: 'readyForTesting', title: 'Testing Phase', body: `Your drone is ready for testing` },
-            uin_registered: { check: 'uinRegistered', title: 'UIN Registered', body: `Your drone has been successfully registered with DGCA` },
+            ready_for_testing: { check: 'readyForTesting', title: 'Ready for Testing', body: `Your drone is ready for testing phase` },
+            tested_successfully: { check: null, title: 'Testing Successful', body: `Your drone has passed all tests successfully!` },
+            uin_generated: { check: 'uinRegistered', title: 'UIN Generated', body: `UIN for your drone has been successfully generated` },
+            uin_transferred_successfully: { check: null, title: 'UIN Transferred', body: `The UIN for your drone has been transferred successfully` },
             ready_to_dispatch: { check: 'readyToDispatch', title: 'Ready for Dispatch', body: `Your order is packed and ready to be dispatched` },
-            dispatched: { check: null, title: 'Order Dispatched', body: `Your order ${order.orderNumber} has been dispatched. Track your delivery!` },
-            delivered: { check: null, title: 'Order Delivered', body: `Your order ${order.orderNumber} has been delivered. Enjoy your drone!` }
+            delivered: { check: null, title: 'Order Delivered', body: `Your order ${order.orderNumber} has been received and delivered. Enjoy your drone!` }
         };
 
         const notification = notificationMap[status];

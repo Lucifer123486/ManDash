@@ -43,7 +43,7 @@ exports.createOrder = async (req, res) => {
             expectedDeliveryDate,
             totalAmount: calculatedTotal,
             createdBy: req.user._id,
-            status: 'pending'
+            status: 'booking_confirmed'
         });
 
         // Update customer's orders array
@@ -77,9 +77,13 @@ exports.getOrders = async (req, res) => {
         if (status) query.status = status;
         if (customerId) query.customer = customerId;
 
-        // Clients can only see their own orders
+        // Clients can only see their own orders (ID or Email match)
         if (req.user.role === 'client') {
-            query.customer = req.user._id;
+            query.$or = [
+                { customer: req.user._id },
+                { customerEmail: req.user.email }
+            ];
+            delete query.customer; // Clear explicit id check to allow $or
         }
 
         const orders = await Order.find(query)
@@ -131,8 +135,11 @@ exports.getOrder = async (req, res) => {
             });
         }
 
-        // Check if client is accessing their own order
-        if (req.user.role === 'client' && order.customer._id.toString() !== req.user._id.toString()) {
+        // Check if client is accessing their own order (ID or Email)
+        const isOwner = order.customer?._id?.toString() === req.user._id.toString();
+        const isEmailMatch = order.customerEmail === req.user.email;
+
+        if (req.user.role === 'client' && !isOwner && !isEmailMatch) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to access this order'
@@ -204,7 +211,7 @@ exports.confirmBooking = async (req, res) => {
             });
         }
 
-        order.status = 'confirmed';
+        order.status = 'in_manufacturing';
         await order.save();
 
         // Create drones for the order
@@ -224,7 +231,7 @@ exports.confirmBooking = async (req, res) => {
         await order.save();
 
         // Send confirmation SMS
-        await notificationService.notifyOrderStatus(order, 'confirmed');
+        await notificationService.notifyOrderStatus(order, 'in_manufacturing');
 
         res.status(200).json({
             success: true,
@@ -304,13 +311,14 @@ exports.getOrderTracking = async (req, res) => {
 
         // Build tracking timeline
         const statusTimeline = [
-            { status: 'confirmed', label: 'Order Confirmed', date: order.createdAt },
+            { status: 'booking_confirmed', label: 'Booking Confirmed', date: order.createdAt },
             { status: 'in_manufacturing', label: 'In Manufacturing Process', date: null },
             { status: 'ready_for_testing', label: 'Ready for Testing', date: null },
-            { status: 'uin_registered', label: 'UIN Registered Successfully', date: null },
-            { status: 'ready_to_dispatch', label: 'Ready to Dispatch', date: null },
-            { status: 'dispatched', label: 'Dispatched', date: order.dispatchDate },
-            { status: 'delivered', label: 'Delivered', date: order.actualDeliveryDate }
+            { status: 'tested_successfully', label: 'Tested Successfully', date: null },
+            { status: 'uin_generated', label: 'UIN Generated', date: null },
+            { status: 'uin_transferred_successfully', label: 'UIN Transferred Successfully', date: null },
+            { status: 'ready_to_dispatch', label: 'Ready to Dispatch', date: order.dispatchDate },
+            { status: 'delivered', label: 'Received/Delivered', date: order.actualDeliveryDate }
         ];
 
         res.status(200).json({
@@ -330,6 +338,66 @@ exports.getOrderTracking = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching tracking',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Delete order (Password Protected)
+// @route   DELETE /api/orders/:id
+// @access  Private/Admin/Staff
+exports.deleteOrder = async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password is required to delete an order'
+            });
+        }
+
+        const user = await User.findById(req.user._id).select('+password');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Incorrect password'
+            });
+        }
+
+        const order = await Order.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Remove order reference from customer
+        if (order.customer) {
+            await User.findByIdAndUpdate(order.customer, {
+                $pull: { orders: order._id }
+            });
+        }
+
+        await order.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            data: {}
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting order',
             error: error.message
         });
     }

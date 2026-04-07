@@ -13,12 +13,12 @@ const { protect, authorize } = require('../middleware/auth');
 router.use(protect); // All routes require authentication
 
 router.route('/')
-    .get(authorize('admin'), getUsers)
-    .post(authorize('admin'), createUser);
+    .get(authorize('admin', 'staff'), getUsers)
+    .post(authorize('admin', 'staff'), createUser);
 
 router.route('/:id')
-    .get(authorize('admin'), getUser)
-    .put(authorize('admin'), updateUser)
+    .get(authorize('admin', 'staff'), getUser)
+    .put(authorize('admin', 'staff'), updateUser)
     .delete(authorize('admin'), deleteUser);
 
 router.put('/:id/assign-drones', authorize('admin'), assignDrones);

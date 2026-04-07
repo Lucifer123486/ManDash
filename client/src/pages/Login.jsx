@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import CompanyLogo from '../components/common/CompanyLogo';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -50,29 +51,25 @@ const Login = () => {
             }}>
                 {/* Logo */}
                 <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <div style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #FFD600, #FFC107)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 20px',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        color: '#212121',
-                        boxShadow: '0 4px 20px rgba(255, 214, 0, 0.3)'
+                    <CompanyLogo size={140} theme="dark" />
+                    <h1 style={{
+                        color: '#FFD600',
+                        fontSize: '2.5rem',
+                        marginBottom: '4px',
+                        fontFamily: "'Times New Roman', Times, serif",
+                        fontWeight: 'bold'
                     }}>
-                        CS
-                    </div>
-                    <h1 style={{ color: '#FFD600', fontSize: '1.75rem', marginBottom: '8px' }}>
-                        CEREBROSPARK
+                        CerebroSpark
                     </h1>
-                    <p style={{ color: '#9e9e9e', fontSize: '0.875rem' }}>
+                    <p style={{
+                        color: '#e0e0e0',
+                        fontSize: '1rem',
+                        fontFamily: "'Times New Roman', Times, serif"
+                    }}>
                         INNOVATIONS PRIVATE LIMITED
                     </p>
                 </div>
+
 
                 {/* Login Card */}
                 <div className="card" style={{

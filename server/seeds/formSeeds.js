@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const FormSchema = require('../models/FormSchema');
+const FormSubmission = require('../models/FormSubmission');
+const Drone = require('../models/Drone');
 const User = require('../models/User');
 require('dotenv').config({ path: '../.env' });
 
@@ -19,25 +21,110 @@ const formSchemas = [
         expectedDuration: 24, // 1 day
         requiresApproval: true,
         headerFields: [
-            { name: 'date', label: 'Date', type: 'date', required: true },
-            { name: 'poNumber', label: 'PO Number', type: 'text', required: true },
-            { name: 'orderNo', label: 'Order No', type: 'text', required: true },
-            { name: 'droneSerialNo', label: 'Drone Serial No', type: 'text', required: true }
+            { name: 'voucherNo', label: 'Voucher No.', type: 'text', required: true },
+            { name: 'date', label: 'Dated', type: 'date', required: true },
+            {
+                name: 'modeOfPayment',
+                label: 'Mode/Term of Payment',
+                type: 'select',
+                options: [
+                    '50% Advance, 50% After delivery',
+                    '10% advance, 90% after delivery',
+                    'online',
+                    'offline',
+                    '100% advance',
+                    '100% after delivery'
+                ],
+                required: true
+            },
+            { name: 'quotationNo', label: 'Quotation No. (From Supplier)', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Purchase Details',
+                title: 'Supplier Information',
                 fields: [
-                    { name: 'vendorName', label: 'Vendor Name', type: 'text', required: true },
-                    { name: 'vendorAddress', label: 'Vendor Address', type: 'textarea' },
-                    { name: 'totalAmount', label: 'Total Amount', type: 'number', required: true },
-                    { name: 'paymentTerms', label: 'Payment Terms', type: 'text' }
+                    {
+                        name: 'supplierName',
+                        label: 'Supplier (Bill From)',
+                        type: 'select',
+                        options: ['Tiltas Systems LLP', 'Aeromat creative Labs Pvt. Ltd.', 'Robu', 'Other'],
+                        required: true
+                    },
+                    {
+                        name: 'otherSupplierName',
+                        label: 'Other Supplier Name',
+                        type: 'text',
+                        placeholder: 'Enter other supplier name',
+                        required: false // Only required if 'Other' is selected (handled in UI)
+                    }
+                ]
+            },
+            {
+                title: 'Material Quantities',
+                fields: [
+                    { name: 'qty_1', label: 'EFT-E610P AGRI FRAME (Qty)', type: 'number' },
+                    { name: 'qty_2', label: '10L STDD TANK WITH PLATE (Qty)', type: 'number' },
+                    { name: 'qty_3', label: 'EFT-VERTICAL SPRAY SYSTEM (Qty)', type: 'number' },
+                    { name: 'qty_4', label: 'EFT-EXT VERTICAL NOZZLE (Qty)', type: 'number' },
+                    { name: 'qty_5', label: 'HOBBYWING-5L PUMP (Qty)', type: 'number' },
+                    { name: 'qty_6', label: 'X6 PLUS WITH PROP. CW (Qty)', type: 'number' },
+                    { name: 'qty_7', label: 'X6 PLUS WITH PROP CCW (Qty)', type: 'number' },
+                    { name: 'qty_8', label: 'JIYI-FLOW METER SENSOR (Qty)', type: 'number' },
+                    { name: 'qty_9', label: 'SKYDROID-T12 TRANSMITTER (Qty)', type: 'number' },
+                    { name: 'qty_10', label: 'TATTU 22000MAH BATTERY (Qty)', type: 'number' },
+                    { name: 'qty_11', label: 'JIYI-GROUND RADAR (Qty)', type: 'number' },
+                    { name: 'qty_12', label: 'JIYI-OBSTACLE SENSOR (Qty)', type: 'number' },
+                    { name: 'qty_13', label: 'JIYI-CAN HUB SENSOR (Qty)', type: 'number' },
+                    { name: 'qty_14', label: 'JIYI-K++ V2 FC (Qty)', type: 'number' },
+                    { name: 'qty_15', label: 'UP1100 CHARGER (Qty)', type: 'number' },
+                    { name: 'qty_16', label: 'EFT-GROUND RADAR SEAT (Qty)', type: 'number' },
+                    { name: 'qty_17', label: 'EFT-OBSTACLE RADAR SEAT (Qty)', type: 'number' }
                 ]
             }
         ],
         footerFields: [
-            { name: 'preparedBy', label: 'Prepared By', type: 'text' },
+            { name: 'preparedBy', label: 'Ordered By', type: 'text' },
             { name: 'approvedBy', label: 'Approved By', type: 'text' }
+        ]
+    },
+
+    // Stage 1.5: Work Order Form (GS)
+    {
+        formName: 'Work Order',
+        formCode: 'WORK_ORDER',
+        description: 'Internal work order for drone manufacturing',
+        category: 'material',
+        allowedRoles: ['admin', 'staff'],
+        accessRoles: ['admin', 'gs'],
+        workflowOrder: 2,
+        prerequisiteForm: 'PO',
+        expectedDuration: 8,
+        requiresApproval: false,
+        headerFields: [
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'workOrderNo', label: 'Work Order No.', type: 'text', required: true }
+        ],
+        sections: [
+            {
+                title: 'Client Details',
+                fields: [
+                    { name: 'clientName', label: '1. Name of Client', type: 'text', required: true }
+                ]
+            },
+            {
+                title: 'Product Details',
+                fields: [
+                    { name: 'modelName', label: '1. Model Name', type: 'text', defaultValue: 'CS_KRISHI_10L', required: true },
+                    { name: 'quantity', label: '2. Quantity', type: 'number', required: true },
+                    { name: 'typeOfNozzle', label: '3. Type of Nozzle', type: 'text', required: true },
+                    { name: 'accessories', label: '4. Accessories', type: 'text' }
+                ]
+            }
+        ],
+        footerFields: [
+            { name: 'salesManager', label: 'Sales manager', type: 'text' },
+            { name: 'planningManager', label: 'Planning Manager', type: 'text' },
+            { name: 'remark', label: 'Remark', type: 'text', defaultValue: 'To Production Manager' }
         ]
     },
 
@@ -49,40 +136,181 @@ const formSchemas = [
         category: 'material',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'gs'],
-        workflowOrder: 2,
-        prerequisiteForm: 'PO',
+        workflowOrder: 3,
+        prerequisiteForm: 'WORK_ORDER',
         expectedDuration: 24, // 1 day
         requiresApproval: true,
         headerFields: [
             { name: 'date', label: 'Date', type: 'date', required: true },
-            { name: 'materialOrderNo', label: 'Material Order No', type: 'text', required: true },
-            { name: 'workOrderNo', label: 'Work Order No', type: 'text', required: true },
-            { name: 'droneSeriesNo', label: 'Drone Series No', type: 'text', required: true },
-            { name: 'typeOfRequisition', label: 'Type of Requisition', type: 'select', options: ['NEW', 'Maintenance', 'Spare'], required: true }
+            { name: 'materialOrderNo', label: 'A. Material Order No.', type: 'text', required: true },
+            { name: 'workOrderNo', label: 'B. Work Order No.', type: 'text', required: true },
+            { name: 'droneSeriesNo', label: 'C. Drone series No.', type: 'text', required: true },
+            { name: 'typeOfRequisition', label: 'D. Type of Requisition', type: 'select', options: ['NEW', 'Maintenance', 'Onfield Maintenance', 'Spare'], required: true }
         ],
         sections: [
             {
                 title: 'Item 1',
                 fields: [
-                    { name: 'particular1', label: 'Particular', type: 'text' },
-                    { name: 'partNo1', label: 'Part No', type: 'text' },
-                    { name: 'qty1', label: 'Quantity', type: 'number' }
+                    { name: 'particular_1', label: 'Particular', type: 'text' },
+                    { name: 'partNo_1', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_1', label: 'Part Code', type: 'text' },
+                    { name: 'qty_1', label: 'QTY', type: 'number' },
+                    { name: 'department_1', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_1', label: 'Remark', type: 'text' }
                 ]
             },
             {
                 title: 'Item 2',
                 fields: [
-                    { name: 'particular2', label: 'Particular', type: 'text' },
-                    { name: 'partNo2', label: 'Part No', type: 'text' },
-                    { name: 'qty2', label: 'Quantity', type: 'number' }
+                    { name: 'particular_2', label: 'Particular', type: 'text' },
+                    { name: 'partNo_2', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_2', label: 'Part Code', type: 'text' },
+                    { name: 'qty_2', label: 'QTY', type: 'number' },
+                    { name: 'department_2', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_2', label: 'Remark', type: 'text' }
                 ]
             },
             {
                 title: 'Item 3',
                 fields: [
-                    { name: 'particular3', label: 'Particular', type: 'text' },
-                    { name: 'partNo3', label: 'Part No', type: 'text' },
-                    { name: 'qty3', label: 'Quantity', type: 'number' }
+                    { name: 'particular_3', label: 'Particular', type: 'text' },
+                    { name: 'partNo_3', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_3', label: 'Part Code', type: 'text' },
+                    { name: 'qty_3', label: 'QTY', type: 'number' },
+                    { name: 'department_3', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_3', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 4',
+                fields: [
+                    { name: 'particular_4', label: 'Particular', type: 'text' },
+                    { name: 'partNo_4', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_4', label: 'Part Code', type: 'text' },
+                    { name: 'qty_4', label: 'QTY', type: 'number' },
+                    { name: 'department_4', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_4', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 5',
+                fields: [
+                    { name: 'particular_5', label: 'Particular', type: 'text' },
+                    { name: 'partNo_5', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_5', label: 'Part Code', type: 'text' },
+                    { name: 'qty_5', label: 'QTY', type: 'number' },
+                    { name: 'department_5', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_5', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 6',
+                fields: [
+                    { name: 'particular_6', label: 'Particular', type: 'text' },
+                    { name: 'partNo_6', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_6', label: 'Part Code', type: 'text' },
+                    { name: 'qty_6', label: 'QTY', type: 'number' },
+                    { name: 'department_6', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_6', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 7',
+                fields: [
+                    { name: 'particular_7', label: 'Particular', type: 'text' },
+                    { name: 'partNo_7', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_7', label: 'Part Code', type: 'text' },
+                    { name: 'qty_7', label: 'QTY', type: 'number' },
+                    { name: 'department_7', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_7', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 8',
+                fields: [
+                    { name: 'particular_8', label: 'Particular', type: 'text' },
+                    { name: 'partNo_8', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_8', label: 'Part Code', type: 'text' },
+                    { name: 'qty_8', label: 'QTY', type: 'number' },
+                    { name: 'department_8', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_8', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 9',
+                fields: [
+                    { name: 'particular_9', label: 'Particular', type: 'text' },
+                    { name: 'partNo_9', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_9', label: 'Part Code', type: 'text' },
+                    { name: 'qty_9', label: 'QTY', type: 'number' },
+                    { name: 'department_9', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_9', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 10',
+                fields: [
+                    { name: 'particular_10', label: 'Particular', type: 'text' },
+                    { name: 'partNo_10', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_10', label: 'Part Code', type: 'text' },
+                    { name: 'qty_10', label: 'QTY', type: 'number' },
+                    { name: 'department_10', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_10', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 11',
+                fields: [
+                    { name: 'particular_11', label: 'Particular', type: 'text' },
+                    { name: 'partNo_11', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_11', label: 'Part Code', type: 'text' },
+                    { name: 'qty_11', label: 'QTY', type: 'number' },
+                    { name: 'department_11', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_11', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 12',
+                fields: [
+                    { name: 'particular_12', label: 'Particular', type: 'text' },
+                    { name: 'partNo_12', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_12', label: 'Part Code', type: 'text' },
+                    { name: 'qty_12', label: 'QTY', type: 'number' },
+                    { name: 'department_12', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_12', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 13',
+                fields: [
+                    { name: 'particular_13', label: 'Particular', type: 'text' },
+                    { name: 'partNo_13', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_13', label: 'Part Code', type: 'text' },
+                    { name: 'qty_13', label: 'QTY', type: 'number' },
+                    { name: 'department_13', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_13', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 14',
+                fields: [
+                    { name: 'particular_14', label: 'Particular', type: 'text' },
+                    { name: 'partNo_14', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_14', label: 'Part Code', type: 'text' },
+                    { name: 'qty_14', label: 'QTY', type: 'number' },
+                    { name: 'department_14', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_14', label: 'Remark', type: 'text' }
+                ]
+            },
+            {
+                title: 'Item 15',
+                fields: [
+                    { name: 'particular_15', label: 'Particular', type: 'text' },
+                    { name: 'partNo_15', label: 'Part No.', type: 'text' },
+                    { name: 'partCode_15', label: 'Part Code', type: 'text' },
+                    { name: 'qty_15', label: 'QTY', type: 'number' },
+                    { name: 'department_15', label: 'Department', type: 'select', options: ['Soldering', 'Mechanical', 'Payload', 'Electrical', 'Callibration', 'Maintenance', 'Spare'] },
+                    { name: 'remark_15', label: 'Remark', type: 'text' }
                 ]
             }
         ],
@@ -94,191 +322,263 @@ const formSchemas = [
 
     // Stage 3: Soldering Station QA (Manufacturing Staff)
     {
-        formName: 'QA - Soldering Station',
+        formName: 'Quality Assurance Procedure for Soldering Station',
         formCode: 'QA_SOLDERING',
         description: 'Quality assurance checklist for soldering station',
         category: 'manufacturing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'manufacturing_staff'],
-        workflowOrder: 3,
+        workflowOrder: 4,
         prerequisiteForm: 'MRF',
         expectedDuration: 32, // ~1.3 days
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Motor Solder Connections',
+                title: 'Motor Checks',
                 fields: [
-                    { name: 'motor1', label: 'Motor 1 solder connection', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motor2', label: 'Motor 2 solder connection', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motor3', label: 'Motor 3 solder connection', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motor4', label: 'Motor 4 solder connection', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motor5', label: 'Motor 5 solder connection', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motor6', label: 'Motor 6 solder connection', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'motor1', label: '1. Check solder connection of motor and XT60 connectors - Motor 1', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motor2', label: '1. Check solder connection of motor and XT60 connectors - Motor 2', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motor3', label: '1. Check solder connection of motor and XT60 connectors - Motor 3', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motor4', label: '1. Check solder connection of motor and XT60 connectors - Motor 4', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motor5', label: '1. Check solder connection of motor and XT60 connectors - Motor 5', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motor6', label: '1. Check solder connection of motor and XT60 connectors - Motor 6', type: 'select', options: ['YES', 'NO'] }
                 ]
             },
             {
-                title: 'Connector Checks',
+                title: 'Component Checks',
                 fields: [
-                    { name: 'pmuCheck', label: 'PMU XT60 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'canHubCheck', label: 'CAN HUB XT60 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'cameraCheck', label: 'Camera XT60 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'pumpCheck', label: 'Pump XT60 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'nozzle1', label: 'Nozzle 1 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'nozzle2', label: 'Nozzle 2 connector', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'wireMesh', label: 'Wire mesh installed', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'pmuCheck', label: '2. Check solder connection of PMU and XT60 connector', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'canHubCheck', label: '3. Check solder connection of CAN HUB and XT60 connector', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'cameraCheck', label: '4. Check solder connection of Camera and XT60 connector', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pumpCheck', label: '5. Check solder connection of Pump and XT60 connector', type: 'select', options: ['YES', 'NO'] }
+                ]
+            },
+            {
+                title: 'Nozzle Checks',
+                fields: [
+                    { name: 'nozzle1', label: '6. Check solder connection of Centrifugal Nozzle and XT60 connector - Nozzle 1', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'nozzle2', label: '6. Check solder connection of Centrifugal Nozzle and XT60 connector - Nozzle 2', type: 'select', options: ['YES', 'NO'] }
+                ]
+            },
+            {
+                title: 'Other Checks',
+                fields: [
+                    { name: 'wireMesh', label: '7. Check the wire mesh is properly installed', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
             { name: 'verifiedBy', label: 'Verified By', type: 'text' },
-            { name: 'signature', label: 'Signature', type: 'text' }
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' },
+            { name: 'stamp', label: 'Stamp', type: 'text' }
         ]
     },
 
     // Stage 4: Mechanical Station QA (Manufacturing Staff)
     {
-        formName: 'QA - Mechanical Station',
+        formName: 'Quality Assurance Procedure for Mechanical Assembly Station',
         formCode: 'QA_MECHANICAL',
         description: 'Quality assurance checklist for mechanical assembly',
         category: 'manufacturing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'manufacturing_staff'],
-        workflowOrder: 4,
+        workflowOrder: 5,
         prerequisiteForm: 'QA_SOLDERING',
-        expectedDuration: 32,
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
                 title: 'Mechanical Assembly Checks',
                 fields: [
-                    { name: 'armOrientation', label: 'Arm folding orientation (Clockwise)', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'motorOrientation', label: 'Motor orientation', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'boltsCheck', label: '5 bolts tightening check', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'powerCordPolarity', label: 'Power cord polarity (+ve/-ve)', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'frameTightness', label: 'Frame tightness check', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'armOrientation', label: '1. Check the folding orientation of arm (Clockwise)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorOrientation', label: '2. Check the motor orientation', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'boltsCheck', label: '3. Randomly check any 5 bolts tightening with calibrated torque wrench', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'powerCordPolarity', label: '4. Check the Power cord polarity (Backside positive and Front negative)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'powerCordBolts', label: '5. Check whether power cord bolts are tight or not', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'hubBolts', label: '6. Check if all bolts are inserted in hub to arm from top and bottom', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'landingGearJoint', label: '7. Check if landing gear joint is attached properly to hub', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'verticalLandingGear', label: '8. Check vertical landing gear is attached firmly to landing gear', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'horizontalLandingGear', label: '9. Check Horizontal landing gear are firmly attached', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber1', label: '10. Check if motor number is correct on respective arm - Motor number 1', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber2', label: '10. Check if motor number is correct on respective arm - Motor number 2', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber3', label: '10. Check if motor number is correct on respective arm - Motor number 3', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber4', label: '10. Check if motor number is correct on respective arm - Motor number 4', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber5', label: '10. Check if motor number is correct on respective arm - Motor number 5', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber6', label: '10. Check if motor number is correct on respective arm - Motor number 6', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
             { name: 'verifiedBy', label: 'Verified By', type: 'text' },
-            { name: 'signature', label: 'Signature', type: 'text' }
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' },
+            { name: 'stamp', label: 'Stamp', type: 'text' }
         ]
     },
 
-    // Stage 5: Electrical Station QA (Manufacturing Staff)
+    // Stage 5: Electronic Station QA (Manufacturing Staff)
     {
-        formName: 'QA - Electrical Station',
-        formCode: 'QA_ELECTRICAL',
-        description: 'Quality assurance checklist for electrical assembly',
+        formName: 'Quality Assurance Procedure for Electronic Assembly Station',
+        formCode: 'QA_ELECTRONIC',
+        description: 'Quality assurance checklist for electronic assembly',
         category: 'manufacturing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'manufacturing_staff'],
-        workflowOrder: 5,
+        workflowOrder: 6,
         prerequisiteForm: 'QA_MECHANICAL',
-        expectedDuration: 32,
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Electrical Checks',
+                title: 'Electronic Assembly Checks',
                 fields: [
-                    { name: 'flightController', label: 'Flight controller installation', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'escConnection', label: 'ESC connections', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'batteryConnector', label: 'Battery connector check', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'gpsModule', label: 'GPS module installation', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'receiverBinding', label: 'Receiver binding', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'fcPosition', label: '1.1 Check the position of components: Flight controller', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pmuPosition', label: '1.2 Check the position of components: PMU', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'canhubPosition', label: '1.3 Check the position of components: CANHUB', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'receiverPosition', label: '1.4 Check the position of components: Receiver', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pdbPosition', label: '1.5 Check the position of components: PDB', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorConnections', label: '2. Check the motor connections to flight controller', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'cameraCheck', label: '3. Check the camera direction, position and connection.', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'gpsDirection', label: '4. Check the direction of GPS', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'antennaPosition', label: '5. Check the position of antenna', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'fcConnections', label: '6. Check the connections of flight controller', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'electronicsTape', label: '7. Check if all electronics are stuck properly to plate using 3M tape', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber1', label: '8. Check if all motor number is correctly installed - Motor number 1', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber2', label: '8. Check if all motor number is correctly installed - Motor number 2', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber3', label: '8. Check if all motor number is correctly installed - Motor number 3', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber4', label: '8. Check if all motor number is correctly installed - Motor number 4', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber5', label: '8. Check if all motor number is correctly installed - Motor number 5', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'motorNumber6', label: '8. Check if all motor number is correctly installed - Motor number 6', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
             { name: 'verifiedBy', label: 'Verified By', type: 'text' },
-            { name: 'signature', label: 'Signature', type: 'text' }
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' },
+            { name: 'stamp', label: 'Stamp', type: 'text' }
         ]
     },
 
     // Stage 6: Payload Station QA (Manufacturing Staff)
     {
-        formName: 'QA - Payload Station',
+        formName: 'Quality Assurance Procedure for Payload Station',
         formCode: 'QA_PAYLOAD',
         description: 'Quality assurance checklist for payload station',
         category: 'manufacturing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'manufacturing_staff'],
-        workflowOrder: 6,
-        prerequisiteForm: 'QA_ELECTRICAL',
-        expectedDuration: 32,
+        workflowOrder: 7,
+        prerequisiteForm: 'QA_ELECTRONIC',
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
                 title: 'Payload Station Checks',
                 fields: [
-                    { name: 'obstacleAvoidance', label: 'Obstacle Avoidance mounting', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'groundRadar', label: 'Ground Radar mounting', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'pump', label: 'Pump mounting', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'flowmeter', label: 'Flowmeter direction', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'tank', label: 'Tank orientation', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'waterFlowTube', label: 'Water flow tube attachments', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'boltsCheck', label: '5 bolts tightening check', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'obstacleAvoidance', label: '1. Check the mounting of Obstacle Avoidance', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'groundRadar', label: '2. Check the mounting of Ground Radar', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pumpMounting', label: '3. Check the mounting of Pump', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'flowmeterDirection', label: '4. Check the direction of flowmeter', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'tankOrientation', label: '5. Check the orientation of tank. (Cap should be in front)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'waterFlowTube', label: '6. Check attachments of water flow tube', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'boltsCheck', label: '7. Randomly check any 5 bolts tightening with calibrated torque wrench', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
             { name: 'verifiedBy', label: 'Verified By', type: 'text' },
-            { name: 'signature', label: 'Signature', type: 'text' }
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' },
+            { name: 'stamp', label: 'Stamp', type: 'text' }
         ]
     },
 
     // Stage 7: Calibration Station QA (Manufacturing Staff)
     {
-        formName: 'QA - Calibration Station',
+        formName: 'Quality Assurance Procedure for Calibration Station',
         formCode: 'QA_CALIBRATION',
-        description: 'Quality assurance checklist for calibration',
+        description: 'Quality assurance checklist for calibration station',
         category: 'manufacturing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'manufacturing_staff'],
-        workflowOrder: 7,
+        workflowOrder: 8,
         prerequisiteForm: 'QA_PAYLOAD',
-        expectedDuration: 32,
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Calibration Checks',
+                title: 'Calibration Station Checks',
                 fields: [
-                    { name: 'accelerometerCal', label: 'Accelerometer calibration', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'compassCal', label: 'Compass calibration', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'radioBinding', label: 'Radio binding', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'escCal', label: 'ESC calibration', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'gpsSignal', label: 'GPS signal test', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'rcCalibration', label: 'RC calibration', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'lowVoltageProtection', label: 'Low voltage protection: Return to Home', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'lowVoltageAlarm', label: 'Low voltage alarm: 1st level – 42 V, 2nd level – 41 V', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pmuCalibration', label: 'PMU calibration', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'liquidProtection', label: 'Liquid protection: Return to Home', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'liquidType', label: 'Liquid Type: Single', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'levelType', label: 'Level type: None', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxSpeedGPS', label: 'Max speed in GPS mode: 8 m/s', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxAngle', label: 'Max angle: 20°', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'backAltitude', label: 'Back altitude: 20 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'sprayWidth', label: 'Spray width: 3.5 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'routeSpeed', label: 'Route speed: 8m/s', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'workEndAction', label: 'Work end action: Return to Home', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'obstacleAvoidance', label: 'Obstacle avoidance: Sensitivity – 25, Action: Hang, Safe distance: 10 m, Help distance: 6 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxRisingSpeed', label: 'Maximum rising speed: 3 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxDescendingSpeed', label: 'Maximum descending speed: 1 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'landSpeed', label: 'Land speed: 0.50 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxAltitude', label: 'Maximum altitude: 60 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maxDistance', label: 'Maximum Distance: 1000 m', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'mapType', label: 'Map type: Google map', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'remoteT12', label: 'Remote: T12', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'voicePrompt', label: 'Voice prompt: on', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'canopyFixation', label: 'Check the canopy fixation and tightening.', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'compareCodes', label: 'Compare Hash code and data code', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
             { name: 'verifiedBy', label: 'Verified By', type: 'text' },
-            { name: 'signature', label: 'Signature', type: 'text' }
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' },
+            { name: 'stamp', label: 'Stamp', type: 'text' }
         ]
     },
 
@@ -290,7 +590,7 @@ const formSchemas = [
         category: 'testing',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'gs'],
-        workflowOrder: 8,
+        workflowOrder: 9,
         prerequisiteForm: 'QA_CALIBRATION',
         expectedDuration: 24,
         requiresApproval: false,
@@ -305,8 +605,11 @@ const formSchemas = [
                 fields: [
                     { name: 'flightControllerNo', label: 'Flight Controller Number', type: 'text', required: true },
                     { name: 'gcsNumber', label: 'GCS Number', type: 'text', required: true },
+                    { name: 'obstacleAvoidanceNo', label: 'Obstacle Avoidance Number', type: 'text' },
+                    { name: 'groundRadarNo', label: 'Ground Radar Number', type: 'text' },
+                    { name: 'gpsNumber', label: 'GPS Number', type: 'text' },
                     { name: 'remoteId', label: 'Remote ID', type: 'text' },
-                    { name: 'pairingStatus', label: 'Pairing Status', type: 'select', options: ['Success', 'Failed'], required: true }
+                    { name: 'pairingStatus', label: 'Pairing Status', type: 'select', options: ['Verified', 'Not Verified'], required: true }
                 ]
             }
         ],
@@ -318,47 +621,51 @@ const formSchemas = [
 
     // Stage 9: Flight Testing (GS + QI)
     {
-        formName: 'Flight Testing Checklist',
+        formName: 'ONGROUND FLIGHT TEST CHECKLIST',
         formCode: 'FLIGHT_TEST',
         description: 'Pre-flight and flight testing checklist',
         category: 'testing',
         allowedRoles: ['admin', 'staff', 'qi'],
         accessRoles: ['admin', 'gs', 'qi'],
-        workflowOrder: 9,
+        workflowOrder: 10,
         prerequisiteForm: 'ACTIVATION',
         expectedDuration: 24,
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
             { name: 'date', label: 'Date', type: 'date', required: true },
-            { name: 'pilotName', label: 'Pilot Name', type: 'text', required: true }
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'time', label: 'Time', type: 'text', required: true },
+            { name: 'issueNo', label: 'Issue No', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Pre-Flight Checks',
+                title: 'Ground Checks',
                 fields: [
-                    { name: 'batteryLevel', label: 'Battery level > 80%', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'propCheck', label: 'Propeller condition', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'gpsLock', label: 'GPS lock obtained', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'compassCheck', label: 'Compass calibrated', type: 'select', options: ['YES', 'NO'] }
-                ]
-            },
-            {
-                title: 'Flight Tests',
-                fields: [
-                    { name: 'hoverStability', label: 'Hover stability', type: 'select', options: ['PASS', 'FAIL'] },
-                    { name: 'yawControl', label: 'Yaw control', type: 'select', options: ['PASS', 'FAIL'] },
-                    { name: 'throttleResponse', label: 'Throttle response', type: 'select', options: ['PASS', 'FAIL'] },
-                    { name: 'sprayTest', label: 'Spray system test', type: 'select', options: ['PASS', 'FAIL'] },
-                    { name: 'rthTest', label: 'Return to home test', type: 'select', options: ['PASS', 'FAIL'] }
+                    { name: 'compassCalibration', label: 'Compass Calibration', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'accelerometerCalibration', label: 'Accelerometer Calibration', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'flowmeterCalibration', label: 'Flowmeter Calibration', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'gpsSatelliteCount', label: 'GPS Satellite Count', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'throttle', label: 'Throttle', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pitch', label: 'Pitch', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'roll', label: 'Roll', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'yaw', label: 'Yaw', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'camera', label: 'Camera', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'obstacleAvoidance', label: 'Obstacle Avoidance', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'groundRadar', label: 'Ground Radar', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pumpOperation', label: 'Pump Operation', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'flowmeterOperation', label: 'Flowmeter Operation', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'nozzlesOperation', label: 'Nozzles Operation', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'tankOperation', label: 'Tank Operation', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'batteryFailsafe', label: 'Battery Failsafe', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
-            { name: 'testResult', label: 'Overall Result', type: 'select', options: ['PASS', 'FAIL'] },
-            { name: 'testedBy', label: 'Tested By', type: 'text' },
-            { name: 'qiSignature', label: 'QI Signature', type: 'text' }
+            { name: 'pilotName', label: 'Pilot Name', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' }
         ]
     },
 
@@ -370,7 +677,7 @@ const formSchemas = [
         category: 'certificate',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'gs'],
-        workflowOrder: 10,
+        workflowOrder: 11,
         prerequisiteForm: 'FLIGHT_TEST',
         expectedDuration: 24,
         requiresApproval: false,
@@ -395,38 +702,105 @@ const formSchemas = [
         ]
     },
 
+    // Stage 10a: D2 Form upload
+    {
+        formName: 'D2 Form',
+        formCode: 'D2_FORM',
+        description: 'D2 Form document upload (PDF or image)',
+        category: 'certificate',
+        allowedRoles: ['admin', 'staff'],
+        accessRoles: ['admin', 'gs'],
+        workflowOrder: 11.1,
+        prerequisiteForm: 'UIN',
+        expectedDuration: 4,
+        requiresApproval: false,
+        headerFields: [],
+        sections: [],
+        footerFields: []
+    },
+
+    // Stage 10b: UIN Photo
+    {
+        formName: 'UIN Photo',
+        formCode: 'UIN_PHOTO',
+        description: 'UIN Photo — click or upload a photo of the UIN',
+        category: 'certificate',
+        allowedRoles: ['admin', 'staff'],
+        accessRoles: ['admin', 'gs'],
+        workflowOrder: 11.2,
+        prerequisiteForm: 'D2_FORM',
+        expectedDuration: 4,
+        requiresApproval: false,
+        headerFields: [],
+        sections: [],
+        footerFields: []
+    },
+
+    // Stage 10c: D3 Form upload
+    {
+        formName: 'D3 Form',
+        formCode: 'D3_FORM',
+        description: 'D3 Form document upload (PDF or image)',
+        category: 'certificate',
+        allowedRoles: ['admin', 'staff'],
+        accessRoles: ['admin', 'gs'],
+        workflowOrder: 11.3,
+        prerequisiteForm: 'UIN_PHOTO',
+        expectedDuration: 4,
+        requiresApproval: false,
+        headerFields: [],
+        sections: [],
+        footerFields: []
+    },
+
     // Stage 11: Packaging Checklist (QI only)
     {
-        formName: 'Packaging Checklist',
+        formName: 'PACKAGING CHECKLIST FOR DRONE',
         formCode: 'PACKAGING',
         description: 'Packaging quality checklist',
         category: 'packaging',
         allowedRoles: ['admin', 'qi'],
         accessRoles: ['admin', 'qi'],
-        workflowOrder: 11,
-        prerequisiteForm: 'UIN',
+        workflowOrder: 12,
+        prerequisiteForm: 'D3_FORM',
         expectedDuration: 16,
         requiresApproval: true,
         headerFields: [
             { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true },
-            { name: 'date', label: 'Date', type: 'date', required: true }
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'time', label: 'Time', type: 'text', required: true }
         ],
         sections: [
             {
                 title: 'Packaging Checks',
                 fields: [
-                    { name: 'droneCondition', label: 'Drone condition check', type: 'select', options: ['OK', 'NOT OK'] },
-                    { name: 'accessoriesIncluded', label: 'All accessories included', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'manualIncluded', label: 'User manual included', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'batteryPackaged', label: 'Battery properly packaged', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'boxCondition', label: 'Box condition', type: 'select', options: ['OK', 'NOT OK'] }
+                    { name: 'droneCondition', label: 'CS_KRISHI_10L (with void tape)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'remoteController', label: 'Remote controller', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'batteryPlate', label: 'Battery Plate', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'smartPhone', label: 'Smart Phone', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'batterySet', label: 'Battery set (Labelled)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'batteryCharger', label: 'Battery charger', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'centrifugalNozzle', label: 'Centrifugal Nozzle (if asked)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'flightManual', label: 'Flight Manual', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maintenanceManual', label: 'Maintenance Manual', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'batteryLogBook', label: 'Battery Log Book', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'maintenanceLogBook', label: 'Maintenance Log book', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'operationalLogBook', label: 'Operational Log Book', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'toolBox', label: 'Tool box', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'droneCase', label: 'Drone case (if asked)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'extraPropeller', label: 'Extra propeller (1 set)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'pneumaticConnector', label: 'Pneumatic connector', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'extraBatterySet', label: 'Extra battery set (if asked)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'extraBatteryCharger', label: 'Extra battery charger (if asked)', type: 'select', options: ['YES', 'NO'] }
                 ]
             }
         ],
         footerFields: [
-            { name: 'packedBy', label: 'Packed By', type: 'text' },
-            { name: 'qiApproval', label: 'QI Approval', type: 'text' }
+            { name: 'authorisedPerson', label: 'Authorised person', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' }
         ]
     },
 
@@ -438,7 +812,7 @@ const formSchemas = [
         category: 'dispatch',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'gs'],
-        workflowOrder: 12,
+        workflowOrder: 13,
         prerequisiteForm: 'PACKAGING',
         expectedDuration: 8,
         requiresApproval: false,
@@ -465,61 +839,69 @@ const formSchemas = [
 
     // Stage 13: Dispatch Checklist (GS + QI)
     {
-        formName: 'Dispatch Checklist',
+        formName: 'DISPATCH CHECKLIST',
         formCode: 'DISPATCH',
         description: 'Final dispatch verification checklist',
         category: 'dispatch',
         allowedRoles: ['admin', 'staff', 'qi'],
         accessRoles: ['admin', 'gs', 'qi'],
-        workflowOrder: 13,
+        workflowOrder: 14,
         prerequisiteForm: 'CUSTOMER_PROFILE',
         expectedDuration: 8,
         requiresApproval: true,
         headerFields: [
-            { name: 'droneSerialNo', label: 'Drone Serial No', type: 'text', required: true },
-            { name: 'orderNo', label: 'Order No', type: 'text', required: true },
-            { name: 'date', label: 'Dispatch Date', type: 'date', required: true }
+            { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
+            { name: 'versionNo', label: 'Version No', type: 'text', required: true, defaultValue: '1' },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'serialNo', label: 'Serial No', type: 'text', required: true, defaultValue: 'CSKRISHI' },
+            { name: 'issueDate', label: 'Issue Date', type: 'text', required: true, defaultValue: '04/03/2023' },
+            { name: 'time', label: 'Time', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'Dispatch Verification',
+                title: 'Dispatch Checks',
                 fields: [
-                    { name: 'allDocsReady', label: 'All documents ready', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'certificateReady', label: 'Certificate of conformity ready', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'invoiceGenerated', label: 'Invoice generated', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'packagingVerified', label: 'Packaging verified', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'courierBooked', label: 'Courier/transport booked', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'invoice', label: 'Invoice', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'deliveryChallan', label: 'Delivery challan (*2)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'customerUndertaking', label: 'Customer undertaking', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'loanDocument', label: 'Loan document (if any)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'subsidyDocument', label: 'Subsidy/ scheme document (if any)', type: 'select', options: ['YES', 'NO'] },
+                    { name: 'remark', label: 'Remark', type: 'text' }
                 ]
             }
         ],
         footerFields: [
-            { name: 'dispatchedBy', label: 'Dispatched By (GS)', type: 'text' },
-            { name: 'verifiedBy', label: 'Verified By (QI)', type: 'text' }
+            { name: 'authorisedPerson', label: 'Authorised person', type: 'text' },
+            { name: 'signature', label: 'Signature', type: 'text' }
         ]
     },
 
-    // Stage 14: Certificate of Confirmation (GS - Auto-fill)
+    // Stage 14: Certificate of Conformity (GS - Auto-fill)
     {
-        formName: 'Certificate of Confirmation',
+        formName: 'Certificate of Conformity',
         formCode: 'CERTIFICATE',
-        description: 'Final certificate of confirmation - auto-filled from previous forms',
+        description: 'Final certificate of conformity - auto-filled from previous forms',
         category: 'certificate',
         allowedRoles: ['admin', 'staff'],
         accessRoles: ['admin', 'gs'],
-        workflowOrder: 14,
+        workflowOrder: 15,
         prerequisiteForm: 'DISPATCH',
         expectedDuration: 4,
         requiresApproval: true,
         headerFields: [
-            { name: 'certificateNo', label: 'Certificate Number', type: 'text', required: true },
+            { name: 'certificateNo', label: 'Certificate Number', type: 'text', required: true, defaultValue: 'CSI/CS_KRISHI_10L/' },
+            { name: 'orderNo', label: 'Order Number / PO Number', type: 'text', required: true },
             { name: 'date', label: 'Date', type: 'date', required: true },
-            { name: 'modelNo', label: 'Model No', type: 'text', required: true, defaultValue: 'CS_KRISHI_10L' },
-            { name: 'serialNo', label: 'Serial No', type: 'text', required: true }
+            { name: 'name', label: 'Name', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'text', required: true },
+            { name: 'pinCode', label: 'Pin Code', type: 'text', required: true }
         ],
         sections: [
             {
-                title: 'UAS Component Details',
+                title: 'Details of UAS',
                 fields: [
+                    { name: 'modelNo', label: 'MODEL NO.', type: 'text', defaultValue: 'CS_KRISHI_10L' },
+                    { name: 'serialNo', label: 'SERIAL NO.', type: 'text' },
                     { name: 'flightControllerNo', label: 'Flight Controller Number', type: 'text' },
                     { name: 'gcsNumber', label: 'GCS Number', type: 'text' },
                     { name: 'obstacleAvoidanceNo', label: 'Obstacle Avoidance Number', type: 'text' },
@@ -527,18 +909,60 @@ const formSchemas = [
                     { name: 'gpsNumber', label: 'GPS Number', type: 'text' },
                     { name: 'uinNumber', label: 'UIN Number', type: 'text' }
                 ]
+            }
+        ],
+        footerFields: [
+            { name: 'sincerely', label: 'Sincerely', type: 'text', defaultValue: 'Sincerely' },
+            { name: 'forCompany', label: 'For Company', type: 'text', defaultValue: 'Cerebrospark Innovations Private Limited.' }
+        ]
+    },
+
+    // Stage 15: Maintenance / Replacement Form (QI/Staff)
+    {
+        formName: 'Maintenance / Replacement Form',
+        formCode: 'MAINTENANCE_REPLACEMENT',
+        description: 'Form for recording drone maintenance or component replacement',
+        category: 'maintenance',
+        allowedRoles: ['admin', 'staff', 'qi'],
+        accessRoles: ['admin', 'gs', 'qi'],
+        workflowOrder: 16,
+        prerequisiteForm: 'CERTIFICATE',
+        expectedDuration: 24,
+        requiresApproval: false,
+        headerFields: [
+            { name: 'dateOfService', label: 'DATE OF SERVICE', type: 'date', required: true }
+        ],
+        sections: [
+            {
+                title: 'Drone & Client Details',
+                fields: [
+                    { name: 'droneModel', label: 'DRONE MODEL', type: 'text', defaultValue: 'CS_KRISHI_10L', required: true },
+                    { name: 'droneUin', label: 'DRONE UIN NUMBER', type: 'text' },
+                    { name: 'serialNo', label: 'SERIAL NUMBER', type: 'text', required: true },
+                    { name: 'customerName', label: 'CUSTOMER NAME', type: 'text', required: true },
+                    { name: 'dateOfPurchase', label: 'DATE OF PURCHASE', type: 'date' },
+                    { name: 'contactDetails', label: 'CONTACT DETAILS', type: 'text' },
+                    { name: 'address', label: 'ADDRESS', type: 'textarea' }
+                ]
             },
             {
-                title: 'Confirmation',
+                title: 'Service Details',
                 fields: [
-                    { name: 'allTestsPassed', label: 'All tests passed', type: 'select', options: ['YES', 'NO'] },
-                    { name: 'readyForDelivery', label: 'Ready for delivery', type: 'select', options: ['YES', 'NO'] }
+                    { name: 'locationOfService', label: 'LOCATION OF SERVICE', type: 'text' },
+                    { name: 'defectDescription', label: 'DEFECT DESCRIPTION', type: 'textarea' },
+                    { name: 'dateOfDefect', label: 'DATE OF DEFECT', type: 'date' },
+                    { name: 'componentsReplaced', label: 'COMPONENTS REPLACED', type: 'textarea' },
+                    { name: 'maintenanceCarriedOut', label: 'MAINTENANCE CARRIED OUT', type: 'textarea' },
+                    { name: 'engineerName', label: 'ENGINEER NAME', type: 'text' },
+                    { name: 'remark', label: 'REMARK', type: 'text' },
+                    { name: 'suggestion', label: 'SUGGESTION', type: 'text' },
+                    { name: 'nextMaintenanceDate', label: 'NEXT MAINTENANCE DUE DATE', type: 'date' }
                 ]
             }
         ],
         footerFields: [
-            { name: 'issuedBy', label: 'Issued By', type: 'text' },
-            { name: 'authorizedSignature', label: 'Authorized Signature', type: 'text' }
+            { name: 'personInCharge', label: 'Person In-charge', type: 'text' },
+            { name: 'receiver', label: 'Receiver', type: 'text' }
         ]
     }
 ];
@@ -567,6 +991,43 @@ const seedDatabase = async () => {
         // Insert form schemas
         const insertedForms = await FormSchema.insertMany(formSchemas);
         console.log(`Inserted ${insertedForms.length} form schemas`);
+
+        // --- MIGRATION: Re-link existing submissions to new schemas ---
+        console.log('\nMigrating existing submissions to new schema IDs...');
+        const submissions = await FormSubmission.find({});
+        console.log(`Found ${submissions.length} submissions to check`);
+
+        const schemaMap = {}; // code -> _id
+        insertedForms.forEach(f => { schemaMap[f.formCode] = f._id; });
+
+        let migratedCount = 0;
+        for (const sub of submissions) {
+            try {
+                let detectedCode = null;
+
+                // Try to detect form code from field signatures
+                if (sub.formData?.motor1 !== undefined) detectedCode = 'QA_SOLDERING';
+                else if (sub.formData?.armOrientation !== undefined) detectedCode = 'QA_MECHANICAL';
+                else if (sub.formData?.fcPosition !== undefined || sub.formData?.pmuPosition !== undefined || sub.formData?.fc_position !== undefined) detectedCode = 'QA_ELECTRONIC';
+                else if (sub.formData?.poNumber !== undefined) detectedCode = 'PO';
+                else if (sub.formData?.items !== undefined || sub.formData?.particular_0 !== undefined) detectedCode = 'MRF';
+                else if (sub.formData?.payloadWeight !== undefined || sub.formData?.obstacleAvoidance !== undefined) detectedCode = 'QA_PAYLOAD';
+                else if (sub.formData?.firmware_update !== undefined || sub.formData?.rcCalibration !== undefined) detectedCode = 'QA_CALIBRATION';
+
+                if (detectedCode && schemaMap[detectedCode]) {
+                    const newSchemaId = schemaMap[detectedCode];
+                    if (!sub.formSchema || sub.formSchema.toString() !== newSchemaId.toString()) {
+                        await FormSubmission.updateOne({ _id: sub._id }, { formSchema: newSchemaId });
+                        migratedCount++;
+                    }
+                }
+            } catch (err) {
+                console.warn(`Failed to migrate submission ${sub._id}:`, err.message);
+            }
+        }
+        console.log(`Successfully migrated ${migratedCount} submissions`);
+
+        // --- END MIGRATION ---
 
         // Check if admin exists
         const existingAdmin = await User.findOne({ email: defaultAdmin.email });
