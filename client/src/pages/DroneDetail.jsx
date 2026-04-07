@@ -97,18 +97,30 @@ const DroneDetail = () => {
         const fetchDroneData = async () => {
             try {
                 setLoading(true);
-                const droneRes = await dronesAPI.getById(id);
+                const [droneRes, submissionsRes, usersRes, ordersRes] = await Promise.all([
+                    dronesAPI.getById(id),
+                    dronesAPI.getDocuments(id),
+                    usersAPI.getAll(),
+                    ordersAPI.getAll({ limit: 100 })
+                ]);
+
                 const droneData = droneRes.data.data || droneRes.data;
                 setDrone(droneData);
                 setEgcaId(droneData.egcaId || '');
                 setEgcaPassword(droneData.egcaPassword || '');
 
-                const submissionsRes = await dronesAPI.getDocuments(id);
-                // Ensure docs is an array
                 let docs = submissionsRes.data.data || submissionsRes.data || [];
                 if (!Array.isArray(docs)) docs = [];
-
                 setSubmissions(docs);
+
+                setAllStaff(usersRes.data.data || usersRes.data || []);
+
+                const ordersData = Array.isArray(ordersRes.data.data) ? ordersRes.data.data : (Array.isArray(ordersRes.data) ? ordersRes.data : []);
+                const availableOrders = ordersData.filter(o => {
+                    const assignedCount = o.drones?.length || 0;
+                    return assignedCount < (o.quantity || 1);
+                });
+                setAllOrders(availableOrders);
 
                 // Filter valid workflow codes from submissions
                 const validStageCodes = WORKFLOW_STAGES.map(s => s.code);
@@ -128,22 +140,6 @@ const DroneDetail = () => {
                     .filter(code => validStageCodes.includes(code));
 
                 setCompletedForms([...new Set([...approvedForms, ...skippedSteps])]);
-
-                const usersRes = await usersAPI.getAll();
-                setAllStaff(usersRes.data.data || usersRes.data || []);
-
-                // Fetch Orders for linking
-                const ordersRes = await ordersAPI.getAll({ limit: 100 }); // Get recent 100 orders
-                const ordersData = Array.isArray(ordersRes.data.data) ? ordersRes.data.data : (Array.isArray(ordersRes.data) ? ordersRes.data : []);
-
-                // Filter: Only show orders that are NOT fully assigned (drones.length < quantity)
-                // OR allow current order if we are just switching back to it (though UI handles that differently)
-                const availableOrders = ordersData.filter(o => {
-                    const assignedCount = o.drones?.length || 0;
-                    return assignedCount < (o.quantity || 1);
-                });
-
-                setAllOrders(availableOrders);
 
                 setLoading(false);
             } catch (err) {
@@ -451,9 +447,9 @@ const DroneDetail = () => {
             if (loading) {
                 console.error("Force stopping loading state after timeout");
                 setLoading(false);
-                setError("Timed out waiting for data");
+                setError("Timed out waiting for data (15s exceeded)");
             }
-        }, 5000);
+        }, 15000);
         return () => clearTimeout(timer);
     }, [loading]);
 
