@@ -129,21 +129,7 @@ const Login = () => {
                         </button>
                     </form>
 
-                    {/* Demo Credentials */}
-                    <div style={{
-                        marginTop: '24px',
-                        padding: '16px',
-                        background: '#FFF8E1',
-                        borderRadius: '8px',
-                        fontSize: '0.75rem'
-                    }}>
-                        <p style={{ fontWeight: 600, marginBottom: '8px', color: '#F57C00' }}>
-                            Demo Credentials:
-                        </p>
-                        <p style={{ color: '#666' }}>
-                            <strong>Admin:</strong> admin@cerebrospark.com / admin123
-                        </p>
-                    </div>
+
                 </div>
 
                 {/* Footer */}
