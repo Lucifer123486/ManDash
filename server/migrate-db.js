@@ -5,8 +5,6 @@ dotenv.config();
 
 // CONFIGURATION
 const LOCAL_URI = 'mongodb://localhost:27017/cerebrospark';
-// User provided Atlas URI (with @ in password, we might need to handle it)
-const ATLAS_URI = 'mongodb+srv://mayur2005:2005Mayur@mandash.gffxy17.mongodb.net/cerebrospark?retryWrites=true&w=majority&appName=ManDash';
 
 const collectionsToMigrate = [
   'users',
@@ -29,11 +27,15 @@ async function migrate() {
         console.log('🚀 Starting Database Migration...');
 
         // 1. Connect to Local
-        localConn = await mongoose.createConnection(LOCAL_URI).asPromise();
+        const localUri = process.env.MONGO_URI || LOCAL_URI;
+        localConn = await mongoose.createConnection(localUri).asPromise();
         console.log('✅ Connected to LOCAL MongoDB');
 
         // 2. Connect to Atlas
-        atlasConn = await mongoose.createConnection(ATLAS_URI).asPromise();
+        const atlasUri = process.env.MONGODB_URI;
+        if (!atlasUri) throw new Error('MONGODB_URI not found in .env');
+        
+        atlasConn = await mongoose.createConnection(atlasUri).asPromise();
         console.log('✅ Connected to ATLAS MongoDB');
 
         for (const colName of collectionsToMigrate) {
