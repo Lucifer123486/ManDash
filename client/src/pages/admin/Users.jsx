@@ -30,7 +30,8 @@ const Users = () => {
         hasAMC: false,
         hasASS: false,
         amcStartDate: '',
-        assStartDate: ''
+        assStartDate: '',
+        egcaId: ''
     });
 
     const [errors, setErrors] = useState({});
@@ -64,6 +65,19 @@ const Users = () => {
             }
         });
         return egcaIds.size > 0 ? Array.from(egcaIds).join(', ') : '-';
+    };
+
+    const getSerialNumbers = (user) => {
+        if (!user.orders || user.orders.length === 0) return '-';
+        const serials = new Set();
+        user.orders.forEach(order => {
+            if (order.drones && order.drones.length > 0) {
+                order.drones.forEach(drone => {
+                    if (drone.serialNo) serials.add(drone.serialNo);
+                });
+            }
+        });
+        return serials.size > 0 ? Array.from(serials).join(', ') : '-';
     };
 
     const handleDelete = async (userId, userName) => {
@@ -167,7 +181,8 @@ const Users = () => {
                 hasAMC: user.hasAMC || false,
                 hasASS: user.hasASS || false,
                 amcStartDate: user.amcStartDate ? new Date(user.amcStartDate).toISOString().split('T')[0] : '',
-                assStartDate: user.assStartDate ? new Date(user.assStartDate).toISOString().split('T')[0] : ''
+                assStartDate: user.assStartDate ? new Date(user.assStartDate).toISOString().split('T')[0] : '',
+                egcaId: user.egcaId || ''
             });
         } else {
             setEditingUser(null);
@@ -186,7 +201,8 @@ const Users = () => {
                 hasAMC: false,
                 hasASS: false,
                 amcStartDate: '',
-                assStartDate: ''
+                assStartDate: '',
+                egcaId: ''
             });
         }
         setShowModal(true);
@@ -255,8 +271,8 @@ const Users = () => {
         const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (user.phone && user.phone.includes(searchTerm));
-        if (searchBy === 'egcaId' && user.role === 'client') {
-            return matchesFilter && getEgcaFromDrones(user).toLowerCase().includes(searchTerm.toLowerCase());
+        if (searchBy === 'serialNo' && user.role === 'client') {
+            return matchesFilter && getSerialNumbers(user).toLowerCase().includes(searchTerm.toLowerCase());
         }
         return matchesFilter && matchesSearch;
     });
@@ -332,6 +348,7 @@ const Users = () => {
                     style={{ maxWidth: '180px' }}
                 >
                     <option value="all">All</option>
+                    <option value="serialNo">Serial No.</option>
                 </select>
             </div>
 
@@ -344,7 +361,7 @@ const Users = () => {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
-                                <th>EGCA ID</th>
+                                <th>Serial No.</th>
                                 <th>Phone</th>
                                 <th>Services</th>
                                 <th>Status</th>
@@ -368,7 +385,7 @@ const Users = () => {
                                     <td>
                                         {user.role === 'client' ? (
                                             <div style={{ color: '#333', fontWeight: '500' }}>
-                                                {getEgcaFromDrones(user)}
+                                                {getSerialNumbers(user)}
                                             </div>
                                         ) : (
                                             <div style={{ color: '#ccc' }}>-</div>
@@ -558,6 +575,18 @@ const Users = () => {
                                         />
                                         {errors.phone && <p style={{ color: 'red', fontSize: '12px' }}>{errors.phone}</p>}
                                     </div>
+                                    {formData.role === 'client' && (
+                                        <div className="form-group">
+                                            <label className="form-label">EGCA ID</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={formData.egcaId}
+                                                onChange={e => setFormData({ ...formData, egcaId: e.target.value })}
+                                                placeholder="Enter EGCA ID manually"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {formData.role === 'client' && (

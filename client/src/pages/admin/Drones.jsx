@@ -9,6 +9,7 @@ const Drones = () => {
     const [drones, setDrones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [filter, setFilter] = useState('all');
 
     const [formData, setFormData] = useState({
         serialNo: '',
@@ -105,6 +106,13 @@ const Drones = () => {
         return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
 
+    const filteredDrones = drones.filter(drone => {
+        if (filter === 'assigned') return !!drone.order;
+        if (filter === 'completed') return drone.manufacturingStatus === 'delivered';
+        if (filter === 'manufacturing') return !['packaging', 'dispatch', 'delivered'].includes(drone.manufacturingStatus);
+        return true;
+    });
+
     if (loading) {
         return (
             <div className="loading-container">
@@ -120,9 +128,22 @@ const Drones = () => {
                     <h1 className="page-title">All Drones</h1>
                     <p className="page-subtitle">Track manufacturing progress for all drones</p>
                 </div>
-                <button onClick={openModal} className="btn btn-primary">
-                    + Add Drone
-                </button>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <select
+                        className="form-select"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        style={{ width: '200px', margin: 0 }}
+                    >
+                        <option value="all">All Drones</option>
+                        <option value="assigned">Assigned to Customers</option>
+                        <option value="completed">Completed Drones</option>
+                        <option value="manufacturing">In Manufacturing</option>
+                    </select>
+                    <button onClick={openModal} className="btn btn-primary">
+                        + Add Drone
+                    </button>
+                </div>
             </div>
 
             {/* Stats */}
@@ -168,7 +189,7 @@ const Drones = () => {
 
             {/* Drone Cards */}
             <div className="grid grid-cols-3 gap-lg">
-                {drones.map(drone => (
+                {filteredDrones.map(drone => (
                     <div key={drone._id} className="card">
                         <h3>{formatSerialNo(drone.serialNo)}</h3>
                         <p className="text-muted">{drone.modelNo}</p>

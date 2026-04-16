@@ -295,10 +295,9 @@ const StaffUsers = () => {
                             <tr>
                                 <th>Name</th>
                                 <th>Email</th>
-                                <th>EGCA ID</th>
+                                <th>Serial No.</th>
                                 <th>Phone</th>
                                 <th>Services</th>
-                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -308,8 +307,10 @@ const StaffUsers = () => {
                                     <td>{user.name}</td>
                                     <td>{user.email}</td>
                                     <td>
-                                        <div style={{ color: '#333', fontWeight: '500' }}>
-                                            {getEgcaFromDrones(user)}
+                                        <div style={{ color: '#1a237e', fontWeight: '500', fontSize: '13px' }}>
+                                            {user.orders && user.orders.some(o => o.drones && o.drones.length > 0) ? 
+                                               user.orders.flatMap(o => o.drones || []).map(d => d.serialNo).join(', ') : 
+                                               '-'}
                                         </div>
                                     </td>
                                     <td>{user.phone || '-'}</td>
@@ -328,13 +329,7 @@ const StaffUsers = () => {
                                             </span>
                                         </div>
                                     </td>
-                                    <td>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <span className={`badge ${user.isActive ? 'badge-success' : 'badge-grey'}`}>
-                                                {user.isActive ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </div>
-                                    </td>
+
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <button onClick={() => {

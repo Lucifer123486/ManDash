@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { dronesAPI, formsAPI } from '../../services/api';
 import { formatSerialNo } from '../../utils/serialFormatter';
 
 const Workflow = () => {
+    const navigate = useNavigate();
     const [drones, setDrones] = useState([]);
     const [formSchemas, setFormSchemas] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -24,7 +26,8 @@ const Workflow = () => {
         { key: 'delivery_challan', name: 'Delivery Challan', form: 'DELIVERY_CHALLAN', icon: '📄' },
         { key: 'tax_invoice', name: 'Tax Invoice', form: 'TAX_INVOICE', icon: '💰' },
         { key: 'dispatch', name: 'Dispatch', form: 'DISPATCH', icon: '🚚' },
-        { key: 'delivered', name: 'Certificate', form: 'CERTIFICATE', icon: '📜' }
+        { key: 'delivered', name: 'Certificate', form: 'CERTIFICATE', icon: '📜' },
+        { key: 'maintenance', name: 'Maintenance / Replacement', form: 'MAINTENANCE_REPLACEMENT', icon: '🔧' }
     ];
 
     useEffect(() => {
@@ -122,25 +125,53 @@ const Workflow = () => {
 
                     {selectedDrone ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {workflowSteps.map((step, index) => {
-                                const currentIndex = getCurrentStepIndex(selectedDrone.manufacturingStatus);
+                            {(() => {
+                                const expandedSteps = [];
+                                workflowSteps.forEach(step => {
+                                    if (step.form === 'MAINTENANCE_REPLACEMENT') {
+                                        const mntSubmissions = droneSubmissions.filter(s => s?.formSchema?.formCode === 'MAINTENANCE_REPLACEMENT')
+                                            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                                        
+                                        if (mntSubmissions.length > 0) {
+                                            mntSubmissions.forEach((sub, idx) => {
+                                                expandedSteps.push({
+                                                    ...step,
+                                                    name: `Maintenance / Replacement #${idx + 1}`,
+                                                    specificSubmission: sub
+                                                });
+                                            });
+                                        }
+                                        // ALWAYS add one empty maintenance slot at the end for fresh entries
+                                        expandedSteps.push({
+                                            ...step,
+                                            name: mntSubmissions.length > 0 ? 'New Maintenance' : step.name
+                                        });
+                                    } else {
+                                        expandedSteps.push(step);
+                                    }
+                                });
 
-                                // Robust completion check
-                                const actualSubmission = droneSubmissions.find(s => s.formSchema?.formCode === step.form);
-                                const isCompleted = actualSubmission?.status === 'approved' ||
-                                    (selectedDrone.completedSteps?.some(s => s.step === step.form)) ||
-                                    (index < currentIndex && step.form !== 'CUSTOMER_PROFILE');
+                                return expandedSteps.map((step, index) => {
+                                    const currentIndex = getCurrentStepIndex(selectedDrone.manufacturingStatus);
 
-                                const isCurrent = index === currentIndex;
-                                const isPending = index > currentIndex;
+                                    // Robust completion check
+                                    const actualSubmission = step.specificSubmission || droneSubmissions.find(s => s.formSchema?.formCode === step.form);
+                                    
+                                    const isCompleted = actualSubmission?.status === 'approved' ||
+                                        actualSubmission?.status === 'submitted' || // Maintenance is done once submitted
+                                        (selectedDrone.completedSteps?.some(s => s.step === step.form)) ||
+                                        (index < currentIndex && !['CUSTOMER_PROFILE', 'MAINTENANCE_REPLACEMENT'].includes(step.form));
 
-                                const hasDraft = actualSubmission?.status === 'draft';
-                                const hasPending = actualSubmission?.status === 'submitted';
-                                const canContinue = hasDraft || hasPending;
+                                    const isCurrent = index === currentIndex;
+                                    const isPending = !isCompleted && !isCurrent;
 
+                                    const hasDraft = actualSubmission?.status === 'draft';
+                                    const hasPending = actualSubmission?.status === 'submitted' && step.form !== 'MAINTENANCE_REPLACEMENT';
+                                    const canContinue = hasDraft || hasPending;
+                            
                                 return (
                                     <div
-                                        key={step.key}
+                                        key={index}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -169,7 +200,7 @@ const Workflow = () => {
                                                 {step.name}
                                             </div>
                                             <div className="text-xs text-muted">
-                                                {isCompleted ? 'Completed' : canContinue ? 'Draft Saved' : (isCurrent || step.key === 'customer_profile') ? 'In Progress' : 'Pending'}
+                                                {isCompleted ? 'Completed' : hasDraft ? 'Draft Saved' : hasPending ? 'Pending' : (isCurrent || step.key === 'customer_profile') ? 'In Progress' : 'Pending'}
                                             </div>
                                             {actualSubmission?.status === 'rejected' && actualSubmission?.remarks && (
                                                 <div style={{
@@ -218,11 +249,17 @@ const Workflow = () => {
                                                 </button>
                                             ) : (
                                                 <button
-                                                    onClick={() => navigate(`/staff/forms/${step.form}?droneId=${selectedDrone._id}`)}
+                                                    onClick={() => {
+                                                        if (hasPending) {
+                                                            navigate(`/submission/${actualSubmission?._id}`);
+                                                        } else {
+                                                            navigate(`/staff/forms/${step.form}?droneId=${selectedDrone._id}`);
+                                                        }
+                                                    }}
                                                     className="btn btn-primary btn-sm"
-                                                    style={canContinue ? { background: '#FFD600', color: '#000', borderColor: '#FFD600' } : {}}
+                                                    style={hasDraft ? { background: '#FFD600', color: '#000', borderColor: '#FFD600' } : hasPending ? { background: '#ff9800', color: '#fff', borderColor: '#ff9800' } : {}}
                                                 >
-                                                    {canContinue ? 'Continue' : 'Fill Form'}
+                                                    {hasDraft ? 'Continue' : hasPending ? 'Pending' : 'Fill Form'}
                                                 </button>
                                             )
                                         )}
@@ -231,7 +268,8 @@ const Workflow = () => {
                                         )}
                                     </div>
                                 );
-                            })}
+                                });
+                            })()}
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center', padding: '60px' }}>

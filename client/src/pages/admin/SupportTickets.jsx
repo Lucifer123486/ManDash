@@ -84,7 +84,7 @@ const SupportTickets = () => {
         customerEmail: '',
         customerLocation: '',
         dateOfPurchase: '',
-        photoVideoReceived: '',
+        photoVideoReceived: '', // Path to uploaded file
         contactedCustomerAt: '',
         finalResolutionTime: '',
         issueDescription: '',
@@ -94,7 +94,8 @@ const SupportTickets = () => {
         actionToBeTakenOtherReason: '',
         finalResolutionStatus: 'Resolved',
         finalResolutionOtherReason: '',
-        droneSerialNumber: ''
+        droneSerialNumber: '',
+        allocatedEngineer: '' // For On-field Engineer
     });
 
     useEffect(() => {
@@ -132,8 +133,11 @@ const SupportTickets = () => {
             customerLocation: ticket.customerLocation || '',
             droneSerialNumber: ticket.droneSerialNumber || '',
             dateOfPurchase: formatDate(ticket.dateOfPurchase),
-            finalResolutionStatus: isFinal ? 'Resolved' : 'Initial'
+            finalResolutionStatus: isFinal ? 'Resolved' : 'Initial',
+            allocatedEngineer: ticket.allocatedEngineer || ''
         }));
+        if (ticket.actionToBeTaken) setActionToBeTaken(ticket.actionToBeTaken);
+        else setActionToBeTaken('');
     };
 
     const handleSaveCallLog = async (isFinal = false) => {
@@ -162,7 +166,7 @@ const SupportTickets = () => {
             formData.append('customerLocation', resolutionFormData.customerLocation);
             formData.append('droneSerialNumber', resolutionFormData.droneSerialNumber);
             formData.append('issueDescription', resolutionFormData.issueDescription);
-            formData.append('photoVideoReceived', resolutionFormData.photoVideoReceived);
+            formData.append('customerMedia', resolutionFormData.photoVideoReceived); // Map photoVideoReceived path to customerMedia
             formData.append('actionToBeTaken', actionToBeTaken);
             formData.append('actionToBeTakenOtherReason', resolutionFormData.actionToBeTakenOtherReason);
             formData.append('finalResolutionStatus', resolutionFormData.finalResolutionStatus);
@@ -170,6 +174,7 @@ const SupportTickets = () => {
             formData.append('finalResolutionTime', resolutionFormData.finalResolutionTime);
             formData.append('serviceEngineerRemarks', serviceEngineerRemarks);
             formData.append('geotagPhoto', geotagPhoto);
+            formData.append('allocatedEngineer', resolutionFormData.allocatedEngineer);
             formData.append('contactedCustomerAt', resolutionFormData.contactedCustomerAt);
             formData.append('dateOfPurchase', resolutionFormData.dateOfPurchase);
             
@@ -207,7 +212,8 @@ const SupportTickets = () => {
                 actionToBeTakenOtherReason: '',
                 finalResolutionStatus: 'Resolved',
                 finalResolutionOtherReason: '',
-                droneSerialNumber: ''
+                droneSerialNumber: '',
+                allocatedEngineer: ''
             });
 
             fetchTickets();
@@ -324,19 +330,23 @@ const SupportTickets = () => {
         window.location.href = `tel:${ticket.customerMobile}`;
     };
 
-    const handleFileChange = async (e) => {
+    const handleFileChange = async (e, type = 'geotag') => {
         const file = e.target.files[0];
         if (file) {
             try {
                 setLoading(true);
                 const res = await ticketsAPI.uploadPhoto(file);
                 if (res.data.success) {
-                    setGeotagPhoto(res.data.data);
+                    if (type === 'geotag') {
+                        setGeotagPhoto(res.data.data);
+                    } else if (type === 'received_media') {
+                        setResolutionFormData(prev => ({ ...prev, photoVideoReceived: res.data.data }));
+                    }
                 }
                 setLoading(false);
             } catch (err) {
                 setLoading(false);
-                alert('Error uploading photo: ' + (err.response?.data?.message || err.message));
+                alert('Error uploading file: ' + (err.response?.data?.message || err.message));
             }
         }
     };
@@ -388,25 +398,19 @@ const SupportTickets = () => {
     };
 
     const _unsortedOpen = visibleTickets.filter(t => {
+        if (filterType === 'resolved') return false;
         if (t.status === 'resolved' || t.status === 'rejected') return false;
-        
-        if (filterType !== 'all') {
-            const priority = getTicketPriority(t);
-            if (filterType === 'high' && priority !== 3) return false;
-            if (filterType === 'medium' && priority !== 2) return false;
-            if (filterType === 'standard' && priority !== 1) return false;
-        }
         return true;
     });
 
-    const openTickets = _unsortedOpen.sort((a, b) => {
-        const priorityA = getTicketPriority(a);
-        const priorityB = getTicketPriority(b);
-        if (priorityA !== priorityB) {
-            return priorityB - priorityA; // Descending (3, 2, 1)
-        }
-        return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+    const openTickets = _unsortedOpen.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const historyTickets = visibleTickets.filter(t => {
+        if (filterType === 'unresolved') return false;
+        if (filterType === 'resolved') return t.status === 'resolved';
+        if (t.status !== 'resolved' && t.status !== 'rejected') return false;
+        return true;
+    }).sort((a, b) => new Date(b.resolvedAt || b.createdAt) - new Date(a.resolvedAt || a.createdAt));
 
     const resolvedTickets = visibleTickets.filter(t => t.status === 'resolved');
 
@@ -435,6 +439,12 @@ const SupportTickets = () => {
                         <div className="detail-item"><strong>Action Taken:</strong> {log.actionToBeTaken || 'N/A'}</div>
                         <div className="detail-item"><strong>Resolution Status:</strong> {log.finalResolutionStatus || 'N/A'}</div>
                         
+                        {log.allocatedEngineer && (
+                            <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+                                <strong>Allocated On-Field Engineer:</strong> {engineers.find(e => e._id === (typeof log.allocatedEngineer === 'object' ? log.allocatedEngineer._id : log.allocatedEngineer))?.name || 'N/A'}
+                            </div>
+                        )}
+                        
                         {log.callRecording && (
                             <div className="detail-item" style={{ gridColumn: 'span 2', marginTop: '10px' }}>
                                 <strong>Recording:</strong><br />
@@ -445,6 +455,16 @@ const SupportTickets = () => {
                             <div className="detail-item" style={{ gridColumn: 'span 2', marginTop: '10px' }}>
                                 <strong>On-Field Photo:</strong><br />
                                 <img src={`${FILE_BASE_URL}${log.geotagPhoto}`} style={{ width: '100%', borderRadius: '8px', marginTop: '5px' }} />
+                            </div>
+                        )}
+                        {log.customerMedia && (
+                            <div className="detail-item" style={{ gridColumn: 'span 2', marginTop: '10px' }}>
+                                <strong>Received Media:</strong><br />
+                                {log.customerMedia.match(/\.(mp4|webm|ogg)$/i) ? (
+                                    <video controls src={`${FILE_BASE_URL}${log.customerMedia}`} style={{ width: '100%', borderRadius: '8px', marginTop: '5px' }} />
+                                ) : (
+                                    <img src={`${FILE_BASE_URL}${log.customerMedia}`} style={{ width: '100%', borderRadius: '8px', marginTop: '5px' }} />
+                                )}
                             </div>
                         )}
                          <div className="detail-item" style={{ gridColumn: 'span 2', fontSize: '12px', color: '#888', textAlign: 'right', marginTop: '20px' }}>
@@ -477,7 +497,7 @@ const SupportTickets = () => {
 
             <div className="tickets-list">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <h3 style={{ margin: 0 }}>Open Issues</h3>
+                    <h3 style={{ margin: 0 }}>{filterType === 'resolved' ? 'Issues' : 'Open Issues'}</h3>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         {user?.role === 'admin' && (
                             <button 
@@ -495,9 +515,8 @@ const SupportTickets = () => {
                             onChange={(e) => setFilterType(e.target.value)}
                         >
                             <option value="all">All Tickets</option>
-                            <option value="high">High Priority</option>
-                            <option value="medium">Medium Priority</option>
-                            <option value="standard">Standard Priority</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="unresolved">Unresolved</option>
                         </select>
                     </div>
                 </div>
@@ -686,166 +705,249 @@ const SupportTickets = () => {
                                         {loggingCallId === ticket._id ? (
                                             <div className="unified-log-form" style={{ padding: '20px', background: '#fdf3e7', borderRadius: '12px', border: '1px solid #ffcc80', marginTop: '10px', width: '100%', boxSizing: 'border-box' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                                    <h4 style={{ margin: 0, color: '#e65100' }}>📞 Log Interaction & Final Report</h4>
+                                                    <h4 style={{ margin: 0, color: '#e65100' }}>
+                                                        {isFinalReportMode ? '📋 Final Submit Report' : '📞 Log Notification / Call Interaction'}
+                                                    </h4>
                                                     <button onClick={() => setLoggingCallId(null)} className="btn-close-text">✕</button>
                                                 </div>
-
-                                                <div className="grid grid-cols-2 gap-md">
-                                                    <div className="form-group" style={{ marginBottom: '10px' }}>
-                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Time Contacted <span style={{ color: 'red' }}>*</span></label>
-                                                        <input type="time" className="form-input" value={callLogData.timeContacted} onChange={e => setCallLogData({...callLogData, timeContacted: e.target.value})} />
-                                                    </div>
-                                                    <div className="form-group" style={{ marginBottom: '10px' }}>
-                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Duration (e.g. 5m)</label>
-                                                        <input type="text" className="form-input" value={callLogData.duration} onChange={e => setCallLogData({...callLogData, duration: e.target.value})} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="form-group" style={{ marginBottom: '10px' }}>
-                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Call Recording (Direct Audio File) <span style={{ color: 'red' }}>*</span></label>
-                                                    <input 
-                                                        type="file" 
-                                                        className="form-input" 
-                                                        accept="audio/*" 
-                                                        onChange={e => setCallLogData({...callLogData, recordingFile: e.target.files[0]})} 
-                                                    />
-                                                </div>
-
-                                                <div className="form-group" style={{ marginBottom: '10px' }}>
-                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Description/Notes <span style={{ color: 'red' }}>*</span></label>
-                                                    <textarea 
-                                                        className="form-input" 
-                                                        placeholder="What was discussed?" 
-                                                        value={callLogData.notes} 
-                                                        onChange={e => setCallLogData({...callLogData, notes: e.target.value})} 
-                                                        rows="2" 
-                                                    />
-                                                </div>
-
-                                                <div className="form-group" style={{ marginBottom: '15px' }}>
-                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Special Note (Internal)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        className="form-input" 
-                                                        placeholder="Any internal reminders?" 
-                                                        value={callLogData.specialNote} 
-                                                        onChange={e => setCallLogData({...callLogData, specialNote: e.target.value})} 
-                                                    />
-                                                </div>
-
-                                                <div style={{ borderTop: '2px solid #ffcc80', paddingTop: '15px', marginTop: '10px' }}>
-                                                    <h5 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#e65100' }}>📊 Expanded Data / Resolution Fields</h5>
-                                                    
-                                                    <div className="grid grid-cols-2 gap-md">
-                                                        <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Customer Email <span style={{ color: 'red' }}>*</span></label>
-                                                            <input
-                                                                type="email"
-                                                                className="form-input"
-                                                                value={resolutionFormData.customerEmail}
-                                                                onChange={e => setResolutionFormData({ ...resolutionFormData, customerEmail: e.target.value })}
+                                                
+                                                {/* Always show Received Media option in Final Report */}
+                                                {isFinalReportMode && (
+                                                    <div className="form-group" style={{ marginBottom: '15px', padding: '10px', background: '#fff', borderRadius: '8px', border: '1px solid #ffcc80' }}>
+                                                        <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#e65100', display: 'block', marginBottom: '8px' }}>📤 Upload Received Media (Photo/Video) <span style={{ color: 'red' }}>*</span></label>
+                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                            <input 
+                                                                type="file" 
+                                                                className="form-input" 
+                                                                onChange={e => handleFileChange(e, 'received_media')} 
+                                                                style={{ flex: 1, marginBottom: 0 }}
                                                             />
-                                                        </div>
-                                                        <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Location <span style={{ color: 'red' }}>*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                className="form-input"
-                                                                value={resolutionFormData.customerLocation}
-                                                                onChange={e => setResolutionFormData({ ...resolutionFormData, customerLocation: e.target.value })}
-                                                            />
-                                                        </div>
-                                                         <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Drone Serial No <span style={{ color: 'red' }}>*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                className="form-input"
-                                                                value={resolutionFormData.droneSerialNumber}
-                                                                onChange={e => setResolutionFormData({ ...resolutionFormData, droneSerialNumber: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Date of Purchase</label>
-                                                            <input
-                                                                type="date"
-                                                                className="form-input"
-                                                                value={resolutionFormData.dateOfPurchase}
-                                                                onChange={e => setResolutionFormData({ ...resolutionFormData, dateOfPurchase: e.target.value })}
-                                                            />
+                                                            {resolutionFormData.photoVideoReceived && <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ Uploaded</span>}
                                                         </div>
                                                     </div>
+                                                )}
 
-                                                    <div className="form-group">
-                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Component(s) <span style={{ color: 'red' }}>*</span></label>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', maxHeight: '120px', overflowY: 'auto' }}>
-                                                            {TROUBLESHOOTING_DATA.map(c => (
-                                                                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                                                                    <input 
-                                                                        type="checkbox" 
-                                                                        checked={resolutionFormData.issueComponent.includes(c.id)}
-                                                                        onChange={(e) => {
-                                                                            let newArr = [...resolutionFormData.issueComponent];
-                                                                            if (e.target.checked) newArr.push(c.id);
-                                                                            else newArr = newArr.filter(id => id !== c.id);
-                                                                            setResolutionFormData({ ...resolutionFormData, issueComponent: newArr });
-                                                                        }}
+                                                {!isFinalReportMode && (
+                                                    <>
+                                                        <div className="grid grid-cols-2 gap-md">
+                                                            <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Time Contacted <span style={{ color: 'red' }}>*</span></label>
+                                                                <input type="time" className="form-input" value={callLogData.timeContacted} onChange={e => setCallLogData({...callLogData, timeContacted: e.target.value})} />
+                                                            </div>
+                                                            <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Duration (e.g. 5m)</label>
+                                                                <input type="text" className="form-input" value={callLogData.duration} onChange={e => setCallLogData({...callLogData, duration: e.target.value})} />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Call Recording (Direct Audio File) <span style={{ color: 'red' }}>*</span></label>
+                                                            <input 
+                                                                type="file" 
+                                                                className="form-input" 
+                                                                accept="audio/*" 
+                                                                onChange={e => setCallLogData({...callLogData, recordingFile: e.target.files[0]})} 
+                                                            />
+                                                        </div>
+
+                                                        <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Description/Notes <span style={{ color: 'red' }}>*</span></label>
+                                                            <textarea 
+                                                                className="form-input" 
+                                                                placeholder="What was discussed?" 
+                                                                value={callLogData.notes} 
+                                                                onChange={e => setCallLogData({...callLogData, notes: e.target.value})} 
+                                                                rows="2" 
+                                                            />
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-md">
+                                                            <div className="form-group">
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Action To be Taken <span style={{ color: 'red' }}>*</span></label>
+                                                                <select className="form-input" value={actionToBeTaken} onChange={e => setActionToBeTaken(e.target.value)}>
+                                                                    <option value="">-- Select --</option>
+                                                                    <option value="Solve On Call">Solve On Call</option>
+                                                                    <option value="Solve On Field">Solve On Field</option>
+                                                                    <option value="Service Center">Service Center</option>
+                                                                    <option value="Send Spare">Send Spare</option>
+                                                                    <option value="Other">Other</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Special Note (Internal)</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    className="form-input" 
+                                                                    placeholder="Any internal reminders?" 
+                                                                    value={callLogData.specialNote} 
+                                                                    onChange={e => setCallLogData({...callLogData, specialNote: e.target.value})} 
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Ticket Assignment Logic for Solve On Field */}
+                                                        {actionToBeTaken === 'Solve On Field' && (
+                                                            <div style={{ marginTop: '15px', padding: '15px', background: '#fff3e0', borderRadius: '8px', border: '1px dashed #ff9800', marginBottom: '15px' }}>
+                                                                <div className="form-group" style={{ marginBottom: '0' }}>
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Onfield Engineer <span style={{ color: 'red' }}>*</span></label>
+                                                                    <select 
+                                                                        className="form-input" 
+                                                                        value={resolutionFormData.allocatedEngineer} 
+                                                                        onChange={e => setResolutionFormData({ ...resolutionFormData, allocatedEngineer: e.target.value })}
+                                                                    >
+                                                                        <option value="">-- Select Engineer --</option>
+                                                                        {engineers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
+                                                                    </select>
+                                                                    <p style={{ fontSize: '10px', color: '#e65100', marginTop: '5px' }}>
+                                                                        * Selecting an engineer here will reassign the ticket to them and send an email notification.
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {isFinalReportMode && (
+                                                    <>
+                                                        <div style={{ borderTop: '2px solid #ffcc80', paddingTop: '15px', marginTop: '10px' }}>
+                                                            <h5 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#e65100' }}>📊 Expanded Data / Resolution Fields</h5>
+                                                            
+                                                            <div className="grid grid-cols-2 gap-md">
+                                                                <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Customer Email <span style={{ color: 'red' }}>*</span></label>
+                                                                    <input
+                                                                        type="email"
+                                                                        className="form-input"
+                                                                        value={resolutionFormData.customerEmail}
+                                                                        onChange={e => setResolutionFormData({ ...resolutionFormData, customerEmail: e.target.value })}
                                                                     />
-                                                                    {t ? t(c.categoryKey) : c.categoryKey}
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </div>
+                                                                </div>
+                                                                <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Location <span style={{ color: 'red' }}>*</span></label>
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-input"
+                                                                        value={resolutionFormData.customerLocation}
+                                                                        onChange={e => setResolutionFormData({ ...resolutionFormData, customerLocation: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                 <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Drone Serial No <span style={{ color: 'red' }}>*</span></label>
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-input"
+                                                                        value={resolutionFormData.droneSerialNumber}
+                                                                        onChange={e => setResolutionFormData({ ...resolutionFormData, droneSerialNumber: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Date of Purchase</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        className="form-input"
+                                                                        value={resolutionFormData.dateOfPurchase}
+                                                                        onChange={e => setResolutionFormData({ ...resolutionFormData, dateOfPurchase: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                            </div>
 
-                                                    <div className="form-group" style={{ marginTop: '10px' }}>
-                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Detailed Problem Description <span style={{ color: 'red' }}>*</span></label>
-                                                        <textarea
-                                                            className="form-input"
-                                                            value={resolutionFormData.issueDescription}
-                                                            onChange={e => setResolutionFormData({ ...resolutionFormData, issueDescription: e.target.value })}
-                                                            rows="2"
-                                                        />
-                                                    </div>
+                                                            <div className="form-group">
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Component(s) <span style={{ color: 'red' }}>*</span></label>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', maxHeight: '120px', overflowY: 'auto' }}>
+                                                                    {TROUBLESHOOTING_DATA.map(c => (
+                                                                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                                                                            <input 
+                                                                                type="checkbox" 
+                                                                                checked={resolutionFormData.issueComponent.includes(c.id)}
+                                                                                onChange={(e) => {
+                                                                                    let newArr = [...resolutionFormData.issueComponent];
+                                                                                    if (e.target.checked) newArr.push(c.id);
+                                                                                    else newArr = newArr.filter(id => id !== c.id);
+                                                                                    setResolutionFormData({ ...resolutionFormData, issueComponent: newArr });
+                                                                                }}
+                                                                            />
+                                                                            {t ? t(c.categoryKey) : c.categoryKey}
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
 
-                                                    <div className="grid grid-cols-2 gap-md">
-                                                        <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Action To be Taken <span style={{ color: 'red' }}>*</span></label>
-                                                            <select className="form-input" value={actionToBeTaken} onChange={e => setActionToBeTaken(e.target.value)}>
-                                                                <option value="">-- Select --</option>
-                                                                <option value="Solve On Call">Solve On Call</option>
-                                                                <option value="Solve On Feild">Solve On Field</option>
-                                                                <option value="Service Center">Service Center</option>
-                                                                <option value="Send Spare">Send Spare</option>
-                                                                <option value="Other">Other</option>
-                                                            </select>
+                                                            <div className="form-group" style={{ marginTop: '10px' }}>
+                                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Detailed Problem Description <span style={{ color: 'red' }}>*</span></label>
+                                                                <textarea
+                                                                    className="form-input"
+                                                                    value={resolutionFormData.issueDescription}
+                                                                    onChange={e => setResolutionFormData({ ...resolutionFormData, issueDescription: e.target.value })}
+                                                                    rows="2"
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-md">
+                                                                <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Action To be Taken <span style={{ color: 'red' }}>*</span></label>
+                                                                    <select className="form-input" value={actionToBeTaken} onChange={e => setActionToBeTaken(e.target.value)}>
+                                                                        <option value="">-- Select --</option>
+                                                                        <option value="Solve On Call">Solve On Call</option>
+                                                                        <option value="Solve On Field">Solve On Field</option>
+                                                                        <option value="Service Center">Service Center</option>
+                                                                        <option value="Send Spare">Send Spare</option>
+                                                                        <option value="Other">Other</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div className="form-group">
+                                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Resolution Status <span style={{ color: 'red' }}>*</span></label>
+                                                                    <select className="form-input" value={resolutionFormData.finalResolutionStatus} onChange={e => setResolutionFormData({ ...resolutionFormData, finalResolutionStatus: e.target.value })}>
+                                                                        <option value="Initial">Pending</option>
+                                                                        <option value="Resolved">Resolved</option>
+                                                                        <option value="Other">Other</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* On-field proof collection (Geotag) */}
+                                                            {actionToBeTaken === 'Solve On Field' && (
+                                                                <div style={{ marginTop: '15px', padding: '15px', background: '#e8f5e9', borderRadius: '8px', border: '1px dashed #4caf50' }}>
+                                                                    <div className="form-group" style={{ marginBottom: '0' }}>
+                                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Upload Onfield Geotag Photo <span style={{ color: 'red' }}>*</span></label>
+                                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                                            <input 
+                                                                                type="file" 
+                                                                                className="form-input" 
+                                                                                onChange={e => handleFileChange(e, 'geotag')} 
+                                                                                style={{ flex: 1, marginBottom: 0 }}
+                                                                            />
+                                                                            {geotagPhoto && <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ Uploaded</span>}
+                                                                        </div>
+                                                                        <p style={{ fontSize: '10px', color: '#2e7d32', marginTop: '5px' }}>
+                                                                            * As an on-site engineer, please upload a geotagged photo as proof of visit.
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <div className="form-group">
-                                                            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Resolution Status <span style={{ color: 'red' }}>*</span></label>
-                                                            <select className="form-input" value={resolutionFormData.finalResolutionStatus} onChange={e => setResolutionFormData({ ...resolutionFormData, finalResolutionStatus: e.target.value })}>
-                                                                <option value="Initial">Pending</option>
-                                                                <option value="Resolved">Resolved</option>
-                                                                <option value="Other">Other</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    </>
+                                                )}
 
                                                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px', borderTop: '2px solid #ffcc80', paddingTop: '15px' }}>
-                                                    <button 
-                                                        onClick={() => handleSaveCallLog(false)} 
-                                                        className="btn btn-primary" 
-                                                        style={{ flex: 1, backgroundColor: '#FF9800', border: 'none' }}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading ? 'Logging...' : '💾 Log Interaction'}
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleSaveCallLog(true)} 
-                                                        className="btn btn-success" 
-                                                        style={{ flex: 1 }}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading ? 'Submitting...' : '✅ Final Submission'}
-                                                    </button>
+                                                    {!isFinalReportMode ? (
+                                                        <button 
+                                                            onClick={() => handleSaveCallLog(false)} 
+                                                            className="btn btn-primary" 
+                                                            style={{ flex: 1, backgroundColor: '#FF9800', border: 'none' }}
+                                                            disabled={loading}
+                                                        >
+                                                            {loading ? 'Logging...' : '💾 Log Interaction'}
+                                                        </button>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => handleSaveCallLog(true)} 
+                                                            className="btn btn-success" 
+                                                            style={{ flex: 1 }}
+                                                            disabled={loading}
+                                                        >
+                                                            {loading ? 'Submitting...' : '✅ Final Submit Report'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         ) : (
@@ -870,8 +972,8 @@ const SupportTickets = () => {
                     ))
                 )}
 
-                <h3 style={{ marginTop: '40px' }}>History</h3>
-                {resolvedTickets.concat(tickets.filter(t => t.status === 'rejected')).map(ticket => (
+                {filterType !== 'unresolved' && historyTickets.length > 0 && <h3 style={{ marginTop: '40px' }}>History</h3>}
+                {historyTickets.map(ticket => (
                     <div key={ticket._id} className={`ticket-card ${ticket.status === 'rejected' ? 'rejected-item' : 'resolved-item'}`}>
                         <div className="ticket-header">
                             <span className="ticket-id">

@@ -238,7 +238,7 @@ const Approvals = () => {
 
                             <div style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gridTemplateColumns: 'repeat(3, 1fr)',
                                 gap: '16px',
                                 margin: '16px 0',
                                 padding: '16px',
@@ -248,10 +248,6 @@ const Approvals = () => {
                                 <div>
                                     <div className="text-xs text-muted">Drone</div>
                                     <strong>{sub.drone?.serialNo || 'N/A'}</strong>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted">Workflow Step</div>
-                                    <strong>{sub.formSchema?.workflowOrder || '-'}</strong>
                                 </div>
                                 <div>
                                     <div className="text-xs text-muted">Submitted By</div>

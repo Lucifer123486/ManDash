@@ -15,6 +15,7 @@ const StaffDrones = () => {
     const navigate = useNavigate();
     const [drones, setDrones] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all');
     const [selectedDrone, setSelectedDrone] = useState(null);
     const [submissions, setSubmissions] = useState([]);
     const [completedForms, setCompletedForms] = useState([]);
@@ -332,6 +333,13 @@ const StaffDrones = () => {
         }
     };
 
+    const filteredDrones = drones.filter(drone => {
+        if (filter === 'assigned') return !!drone.order;
+        if (filter === 'completed') return drone.manufacturingStatus === 'delivered';
+        if (filter === 'manufacturing') return !['packaging', 'dispatch', 'delivered'].includes(drone.manufacturingStatus);
+        return true;
+    });
+
     if (loading) {
         return (
             <div className="loading-container">
@@ -346,6 +354,19 @@ const StaffDrones = () => {
                 <div>
                     <h1 className="page-title">Manufacturing Workflow</h1>
                     <p className="page-subtitle">Track and manage drone manufacturing process</p>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <select
+                        className="form-select"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        style={{ width: '200px', margin: 0 }}
+                    >
+                        <option value="all">All Drones</option>
+                        <option value="assigned">Assigned to Customers</option>
+                        <option value="completed">Completed Drones</option>
+                        <option value="manufacturing">In Manufacturing</option>
+                    </select>
                 </div>
             </div>
 
@@ -391,7 +412,7 @@ const StaffDrones = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-lg">
-                {drones.map(drone => (
+                {filteredDrones.map(drone => (
                     <div key={drone._id} className="card">
                         <h3>{formatSerialNo(drone.serialNo || drone.droneId)}</h3>
                         <p className="text-muted">{drone.modelNo}</p>
@@ -437,14 +458,6 @@ const StaffDrones = () => {
                                 style={{ flex: 1, marginTop: '12px', display: 'block', textAlign: 'center' }}
                             >
                                 View Workflow →
-                            </button>
-                            <button
-                                onClick={() => handleDelete(drone._id, drone.serialNo)}
-                                className="btn btn-outline btn-sm"
-                                style={{ marginTop: '12px', padding: '0 12px', borderColor: '#f44336', color: '#f44336', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                title="Delete Drone"
-                            >
-                                <Trash2 size={16} />
                             </button>
                         </div>
                     </div>

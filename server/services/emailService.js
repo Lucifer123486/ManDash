@@ -142,6 +142,74 @@ const generateOrderEmailHTML = (customerName, orderNumber, status, statusMessage
 };
 
 /**
+ * Generate ticket assignment email HTML
+ */
+const generateAssignmentEmailHTML = (engineerName, ticketNumber, customerName, problemDescription, assignedBy) => {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #FF9800, #F57C00); padding: 30px; text-align: center;">
+                <h1 style="margin: 0; color: #ffffff; font-size: 24px;">New Ticket Assignment</h1>
+                <p style="margin: 5px 0 0; color: #ffe0b2; font-size: 14px;">CEREBROSPARK INNOVATIONS</p>
+            </td>
+        </tr>
+        
+        <!-- Content -->
+        <tr>
+            <td style="padding: 30px;">
+                <h2 style="margin: 0 0 15px; color: #212121; font-size: 20px;">Hello ${engineerName},</h2>
+                <p style="margin: 0 0 20px; color: #616161; font-size: 16px; line-height: 1.6;">
+                    You have been assigned to a new on-field support ticket by <strong>${assignedBy}</strong>. Please review the details below and proceed with the site visit.
+                </p>
+                
+                <!-- Ticket Details Box -->
+                <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e0e0e0;">
+                    <table width="100%" cellpadding="0" cellspacing="5">
+                        <tr>
+                            <td style="color: #9e9e9e; font-size: 12px; text-transform: uppercase; width: 30%;">Ticket No</td>
+                            <td style="color: #212121; font-size: 16px; font-weight: 600;">${ticketNumber}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #9e9e9e; font-size: 12px; text-transform: uppercase;">Customer</td>
+                            <td style="color: #212121; font-size: 16px;">${customerName}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #9e9e9e; font-size: 12px; text-transform: uppercase;">Problem</td>
+                            <td style="color: #212121; font-size: 14px; line-height: 1.4;">${problemDescription}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <p style="margin: 20px 0 0; color: #616161; font-size: 14px;">
+                    Please log in to your dashboard to view more details and upload the final report.
+                </p>
+            </td>
+        </tr>
+        
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #212121; padding: 25px 30px; text-align: center;">
+                <p style="margin: 0; color: #9e9e9e; font-size: 12px;">
+                    © 2026 Cerebrospark Innovations Pvt. Ltd.<br>
+                    Field Support Management System
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `;
+};
+
+/**
  * Send order status email
  */
 const sendOrderStatusEmail = async (email, orderNumber, status, customerName) => {
@@ -175,7 +243,15 @@ const sendOrderStatusEmail = async (email, orderNumber, status, customerName) =>
     return sendEmail(email, subject, html);
 };
 
+const sendTicketAssignmentEmail = async (email, engineerName, ticketNumber, customerName, problemDescription, assignedBy) => {
+    const subject = `New Ticket Assigned: ${ticketNumber} - ${customerName}`;
+    const html = generateAssignmentEmailHTML(engineerName, ticketNumber, customerName, problemDescription, assignedBy);
+
+    return sendEmail(email, subject, html);
+};
+
 module.exports = {
     sendEmail,
-    sendOrderStatusEmail
+    sendOrderStatusEmail,
+    sendTicketAssignmentEmail
 };

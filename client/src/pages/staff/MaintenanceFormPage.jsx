@@ -32,17 +32,20 @@ const MaintenanceFormPage = () => {
             const schema = (schemasRes.data.data || []).find(s => s.formCode === 'MAINTENANCE_REPLACEMENT');
             setMaintenanceSchema(schema);
 
-            // Map existing submissions by drone ID and serial number for robust lookups
+            // Group submissions by drone ID for history view
             const submissions = submissionsRes.data.data || [];
             const subMap = {};
             submissions.forEach(s => {
-                // Map by ID
                 const dId = s.drone?._id || s.drone;
-                if (dId) subMap[dId.toString()] = s;
-
-                // Map by Serial No (fallback for cross-reference)
-                const serial = s.headerData?.serialNo || s.headerData?.droneSerialNo;
-                if (serial) subMap[serial] = s;
+                if (dId) {
+                    const idString = dId.toString();
+                    if (!subMap[idString]) subMap[idString] = [];
+                    subMap[idString].push(s);
+                }
+            });
+            // Sort each group by date descending
+            Object.values(subMap).forEach(list => {
+                list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             });
             setExistingSubmissions(subMap);
 
@@ -53,14 +56,8 @@ const MaintenanceFormPage = () => {
         }
     };
 
-    const handleFormTransition = async () => {
-        const existing = existingSubmissions[selectedDroneId];
-        if (existing) {
-            alert('A Maintenance record already exists for this drone. Redirecting to view record...');
-            navigate(`/submission/${existing._id}`);
-            return;
-        }
-
+    const handleFormTransition = () => {
+        // Multiple submissions allowed, so we don't block here.
         if (!selectedDroneId) {
             alert('Please select a drone first.');
             return;
@@ -89,24 +86,6 @@ const MaintenanceFormPage = () => {
     const getSelectedDroneStatus = () => {
         if (!selectedDroneId) return null;
         
-        // Check map by ID first
-        let sub = existingSubmissions[selectedDroneId];
-        
-        // Fallback: Check by serial number of the selected drone
-        if (!sub) {
-            const drone = drones.find(d => d._id === selectedDroneId);
-            if (drone && drone.serialNo) {
-                sub = existingSubmissions[drone.serialNo];
-            }
-        }
-
-        if (sub) {
-            return {
-                label: 'RECORD ALREADY EXISTS',
-                color: '#4CAF50',
-                isCompleted: true
-            };
-        }
         return {
             label: 'READY FOR MAINTENANCE',
             color: '#2196F3',
@@ -195,9 +174,48 @@ const MaintenanceFormPage = () => {
                             opacity: selectedDroneId ? 1 : 0.6
                         }}
                     >
-                        {currentStatus?.isCompleted ? 'View Existing Record' : (submitting ? 'Connecting...' : 'Proceed to Fill Form')}
+                        {submitting ? 'Connecting...' : 'Proceed to Fill Form'}
                     </button>
                 </div>
+
+                {/* HISTORICAL RECORDS LIST */}
+                {selectedDroneId && existingSubmissions[selectedDroneId] && existingSubmissions[selectedDroneId].length > 0 && (
+                    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>
+                            📜 Previous Maintenance Records ({existingSubmissions[selectedDroneId].length})
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {existingSubmissions[selectedDroneId].map((sub, idx) => (
+                                <div key={sub._id} style={{ 
+                                    padding: '12px', 
+                                    background: '#f8f9fa', 
+                                    borderRadius: '8px', 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center',
+                                    border: '1px solid #eaeaea'
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: '600', fontSize: '14px' }}>Maintenance Record #{existingSubmissions[selectedDroneId].length - idx}</div>
+                                        <div style={{ fontSize: '12px', color: '#666' }}>Submitted on {new Date(sub.createdAt).toLocaleDateString()} at {new Date(sub.createdAt).toLocaleTimeString()}</div>
+                                        <div style={{ marginTop: '4px' }}>
+                                            <span className={`badge ${sub.status === 'approved' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '10px' }}>
+                                                {sub.status?.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => navigate(`/submission/${sub._id}`)}
+                                        className="btn btn-ghost btn-sm"
+                                        style={{ fontSize: '12px', color: '#2196F3' }}
+                                    >
+                                        View Details →
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Quick Helper Info */}

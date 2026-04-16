@@ -3,7 +3,8 @@ const FormSchema = require('../models/FormSchema');
 const FormSubmission = require('../models/FormSubmission');
 const Drone = require('../models/Drone');
 const User = require('../models/User');
-require('dotenv').config({ path: '../.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // 15 days = 360 hours, distributed across 11 stages
 // Workflow stages with access control and prerequisites
@@ -828,7 +829,8 @@ const formSchemas = [
                     { name: 'customerPhone', label: 'Phone', type: 'text', required: true },
                     { name: 'customerEmail', label: 'Email', type: 'text' },
                     { name: 'customerAddress', label: 'Address', type: 'textarea', required: true },
-                    { name: 'gstNumber', label: 'GST Number', type: 'text' }
+                    { name: 'gstNumber', label: 'GST Number', type: 'text' },
+                    { name: 'egcaId', label: 'EGCA ID', type: 'text', required: false }
                 ]
             }
         ],
@@ -1009,10 +1011,22 @@ const seedDatabase = async () => {
                 if (sub.formData?.motor1 !== undefined) detectedCode = 'QA_SOLDERING';
                 else if (sub.formData?.armOrientation !== undefined) detectedCode = 'QA_MECHANICAL';
                 else if (sub.formData?.fcPosition !== undefined || sub.formData?.pmuPosition !== undefined || sub.formData?.fc_position !== undefined) detectedCode = 'QA_ELECTRONIC';
-                else if (sub.formData?.poNumber !== undefined) detectedCode = 'PO';
-                else if (sub.formData?.items !== undefined || sub.formData?.particular_0 !== undefined) detectedCode = 'MRF';
-                else if (sub.formData?.payloadWeight !== undefined || sub.formData?.obstacleAvoidance !== undefined) detectedCode = 'QA_PAYLOAD';
+                else if (sub.formData?.poNumber !== undefined || sub.headerData?.supplierName !== undefined) detectedCode = 'PO';
+                else if (sub.formData?.clientName !== undefined || sub.headerData?.workOrderNo !== undefined) detectedCode = 'WORK_ORDER';
+                else if (sub.formData?.items !== undefined || sub.formData?.particular_0 !== undefined || sub.formData?.particular_1 !== undefined) detectedCode = 'MRF';
+                else if (sub.formData?.payloadWeight !== undefined || sub.formData?.obstacleAvoidance !== undefined && sub.formData?.pumpMounting !== undefined) detectedCode = 'QA_PAYLOAD';
                 else if (sub.formData?.firmware_update !== undefined || sub.formData?.rcCalibration !== undefined) detectedCode = 'QA_CALIBRATION';
+                else if (sub.formData?.gcsNumber !== undefined && sub.formData?.pairingStatus !== undefined) detectedCode = 'ACTIVATION';
+                else if (sub.formData?.compassCalibration !== undefined && sub.formData?.accelerometerCalibration !== undefined) detectedCode = 'FLIGHT_TEST';
+                else if (sub.formData?.uinNumber !== undefined && sub.formData?.ownerName !== undefined) detectedCode = 'UIN';
+                else if (sub.formData?.d2Form !== undefined) detectedCode = 'D2_FORM';
+                else if (sub.formData?.uinPhoto !== undefined) detectedCode = 'UIN_PHOTO';
+                else if (sub.formData?.d3Form !== undefined) detectedCode = 'D3_FORM';
+                else if (sub.formData?.droneCondition !== undefined && sub.formData?.flightManual !== undefined) detectedCode = 'PACKAGING';
+                else if (sub.formData?.customerName !== undefined && sub.formData?.customerAddress !== undefined) detectedCode = 'CUSTOMER_PROFILE';
+                else if (sub.formData?.invoice !== undefined && sub.formData?.deliveryChallan !== undefined) detectedCode = 'DISPATCH';
+                else if (sub.formData?.certificateNo !== undefined || sub.headerData?.certificateNo !== undefined) detectedCode = 'CERTIFICATE';
+                else if (sub.formData?.defectDescription !== undefined && sub.formData?.engineerName !== undefined) detectedCode = 'MAINTENANCE_REPLACEMENT';
 
                 if (detectedCode && schemaMap[detectedCode]) {
                     const newSchemaId = schemaMap[detectedCode];

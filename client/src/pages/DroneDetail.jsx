@@ -709,44 +709,83 @@ const DroneDetail = () => {
                         </div>
                         <div className="timeline-wrapper">
                             <div className="timeline-track"></div>
-                            {WORKFLOW_STAGES.map((stage, index) => {
-                                try {
-                                    const status = getStageStatus(stage.code);
-                                    // FIND BEST SUBMISSION: 
-                                    // 1. If rejected, find the rejected one specifically
-                                    // 2. Otherwise find approved/submitted
-                                    const stageSubmissions = submissions.filter(s => s?.formSchema?.formCode === stage.code);
-                                    let submission = stageSubmissions.find(s => s.status === 'rejected') || 
-                                                     stageSubmissions.find(s => s.status === 'approved') || 
-                                                     stageSubmissions.find(s => s.status === 'submitted') || 
-                                                     stageSubmissions[0];
+                            {(() => {
+                                const expandedStages = [];
+                                WORKFLOW_STAGES.forEach(stage => {
+                                    if (stage.code === 'MAINTENANCE_REPLACEMENT') {
+                                        const mntSubmissions = submissions.filter(s => s?.formSchema?.formCode === 'MAINTENANCE_REPLACEMENT')
+                                            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                                        
+                                        if (mntSubmissions.length > 0) {
+                                            mntSubmissions.forEach((sub, idx) => {
+                                                expandedStages.push({
+                                                    ...stage,
+                                                    name: `Maintenance / Replacement #${idx + 1}`,
+                                                    specificSubmission: sub
+                                                });
+                                            });
+                                        }
+                                        // ALWAYS add one empty maintenance slot at the end for fresh entries
+                                        expandedStages.push({
+                                            ...stage,
+                                            name: mntSubmissions.length > 0 ? 'New Maintenance' : stage.name
+                                        });
+                                    } else {
+                                        expandedStages.push(stage);
+                                    }
+                                });
 
+                                return expandedStages.map((stage, index) => {
+                                    try {
+                                        const status = getStageStatus(stage.code);
+                                        // FIND BEST SUBMISSION: 
+                                        // 1. Check if we have a specific submission from expansion
+                                        // 2. Otherwise find rejected/approved/submitted as before
+                                        let submission = stage.specificSubmission || null;
+                                        
+                                        if (!submission) {
+                                            const stageSubmissions = submissions.filter(s => s?.formSchema?.formCode === stage.code);
+                                            submission = stageSubmissions.find(s => s.status === 'rejected') || 
+                                                         stageSubmissions.find(s => s.status === 'approved') || 
+                                                         stageSubmissions.find(s => s.status === 'submitted') || 
+                                                         stageSubmissions[0];
+                                        }
+
+                                        // Override status if we have a specific submission
+                                        let displayStatus = status;
+                                        if (stage.specificSubmission) {
+                                            if (stage.specificSubmission.status === 'approved') displayStatus = 'completed';
+                                            else if (stage.specificSubmission.status === 'submitted') displayStatus = 'completed'; // Maintenance often auto-approves or is considered done
+                                            else if (stage.specificSubmission.status === 'rejected') displayStatus = 'rejected';
+                                            else if (stage.specificSubmission.status === 'draft') displayStatus = 'draft';
+                                        }
+                            
                                 return (
-                                    <div key={stage.code} className={`timeline-node ${status}`}>
+                                    <div key={index} className={`timeline-node ${status}`}>
                                         <div className="node-row">
                                             <div className="node-left">
                                                 <div
                                                     className="node-marker"
                                                     style={{
                                                         // Color logic: only white if completed WITH submission
-                                                        color: (status === 'completed' && submission) ? 'white' :
-                                                            status === 'current' ? stage.color :
-                                                                status === 'pending' ? '#ff9800' :
-                                                                    status === 'completed' ? '#666' : stage.color,
+                                                        color: (displayStatus === 'completed' && submission) ? 'white' :
+                                                            displayStatus === 'current' ? stage.color :
+                                                                displayStatus === 'pending' ? '#ff9800' :
+                                                                    displayStatus === 'completed' ? '#666' : stage.color,
 
-                                                        background: (status === 'completed' && submission) ? '#4caf50' :
-                                                            status === 'pending' ? '#fff3e0' : 'white',
+                                                        background: (displayStatus === 'completed' && submission) ? '#4caf50' :
+                                                            displayStatus === 'pending' ? '#fff3e0' : 'white',
 
-                                                        borderColor: status === 'current' ? '#2196f3' :
-                                                            status === 'pending' ? '#ff9800' :
-                                                                (status === 'completed' && !submission) ? '#ccc' : '#e0e0e0',
+                                                        borderColor: displayStatus === 'current' ? '#2196f3' :
+                                                            displayStatus === 'pending' ? '#ff9800' :
+                                                                (displayStatus === 'completed' && !submission) ? '#ccc' : '#e0e0e0',
 
                                                         boxShadow: status === 'current' ? '0 0 0 5px white, 0 0 10px rgba(33, 150, 243, 0.2)' : 'none'
                                                     }}
                                                 >
-                                                    {(status === 'completed' && submission) ? <FaCheckCircle /> :
-                                                        status === 'current' ? <div className="pulse-dot" style={{ background: stage.color }}></div> :
-                                                            status === 'pending' ? <FaHourglassHalf style={{ fontSize: '14px' }} /> :
+                                                    {(displayStatus === 'completed' && submission) ? <FaCheckCircle /> :
+                                                        displayStatus === 'current' ? <div className="pulse-dot" style={{ background: stage.color }}></div> :
+                                                            displayStatus === 'pending' ? <FaHourglassHalf style={{ fontSize: '14px' }} /> :
                                                                 stage.icon
                                                     }
                                                 </div>
@@ -754,9 +793,9 @@ const DroneDetail = () => {
                                                 <span className="node-name">{stage.name}</span>
                                             </div>
                                             <div className="node-action">
-                                                {status === 'completed' ? (
+                                                {displayStatus === 'completed' ? (
                                                     submission ? (
-                                                        <button className="btn-action view" onClick={() => handleViewSubmission(stage.code)}>VIEW</button>
+                                                        <button className="btn-action view" onClick={() => navigate(`/submission/${submission._id}`)}>VIEW</button>
                                                     ) : (
                                                         (['PO', 'WORK_ORDER', 'ACTIVATION', 'DELIVERY_CHALLAN', 'HASH_CODE', 'TAX_INVOICE', 'D2_FORM', 'D3_FORM'].includes(stage.code)) ? (
                                                             <div style={{ display: 'flex', gap: '5px' }}>
@@ -800,13 +839,13 @@ const DroneDetail = () => {
                                                             <button className="btn-action view" onClick={() => handleViewSubmission(stage.code)}>VIEW</button>
                                                         )
                                                     )
-                                                ) : status === 'pending' ? (
-                                                    <button className="btn-action fill" onClick={() => handleFillForm(stage.code)} style={{ background: '#FFD600', color: '#000' }}>CONTINUE</button>
-                                                ) : status === 'rejected' ? (
+                                                ) : displayStatus === 'pending' ? (
+                                                    <button className="btn-action view" onClick={() => handleViewSubmission(stage.code)} style={{ background: '#ff9800', color: '#fff', borderColor: '#ff9800' }}>PENDING</button>
+                                                ) : displayStatus === 'rejected' ? (
                                                     <button className="btn-action fill" style={{ background: '#f44336' }} onClick={() => handleFillForm(stage.code)}>RETRY</button>
-                                                ) : status === 'draft' ? (
+                                                ) : displayStatus === 'draft' ? (
                                                     <button className="btn-action fill" onClick={() => handleFillForm(stage.code)} style={{ background: '#FFD600', color: '#000' }}>CONTINUE</button>
-                                                ) : status === 'current' ? (
+                                                ) : displayStatus === 'current' ? (
                                                     (stage.code === 'PO' || stage.code === 'WORK_ORDER' || stage.code === 'ACTIVATION' || stage.code === 'DELIVERY_CHALLAN' || stage.code === 'HASH_CODE' || stage.code === 'TAX_INVOICE' || stage.code === 'D2_FORM' || stage.code === 'D3_FORM') ? (
                                                         <div style={{ display: 'flex', gap: '5px' }}>
                                                             {(stage.code !== 'DELIVERY_CHALLAN' && stage.code !== 'HASH_CODE' && stage.code !== 'TAX_INVOICE' && stage.code !== 'D2_FORM' && stage.code !== 'D3_FORM') && (
@@ -824,34 +863,34 @@ const DroneDetail = () => {
                                                 ) : (
                                                     <button className="btn-action view disabled">VIEW</button>
                                                 )}
-                                            </div>
-                                        </div>
-
-                                        {status === 'rejected' && submission?.remarks && (
-                                            <div className="rejection-reason-block">
-                                                <div className="rejection-header">
-                                                    <span>❗</span> Rejection Reason:
+                                            {displayStatus === 'rejected' && submission?.remarks && (
+                                                <div className="rejection-reason-block">
+                                                    <div className="rejection-header">
+                                                        <span>❗</span> Rejection Reason:
+                                                    </div>
+                                                    <div className="rejection-text">{submission.remarks}</div>
+                                                    <button 
+                                                        className="btn-refill"
+                                                        onClick={() => handleFillForm(stage.code)}
+                                                    >
+                                                        Refill Form →
+                                                    </button>
                                                 </div>
-                                                <div className="rejection-text">{submission.remarks}</div>
-                                                <button 
-                                                    className="btn-refill"
-                                                    onClick={() => handleFillForm(stage.code)}
-                                                >
-                                                    Refill Form →
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                                } catch (err) {
-                                    console.error(`[DroneDetail] Error rendering stage ${stage.code}:`, err);
-                                    return (
-                                        <div key={stage.code} className="timeline-node error" style={{ color: 'red', fontSize: '10px', padding: '10px', border: '1px solid red', borderRadius: '4px', margin: '5px 0' }}>
-                                            ⚠️ Error in {stage.name}
+                                            )}
                                         </div>
-                                    );
-                                }
-                            })}
+                                    </div>
+                                </div>
+                                );
+                                    } catch (err) {
+                                        console.error(`[DroneDetail] Error rendering stage ${stage.code}:`, err);
+                                        return (
+                                            <div key={index} className="timeline-node error" style={{ color: 'red', fontSize: '10px', padding: '10px', border: '1px solid red', borderRadius: '4px', margin: '5px 0' }}>
+                                                ⚠️ Error in {stage.name}
+                                            </div>
+                                        );
+                                    }
+                                });
+                            })()}
                         </div>
                     </div>
                 </div>

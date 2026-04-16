@@ -3,7 +3,7 @@ const router = express.Router();
 const Ticket = require('../models/Ticket');
 const Order = require('../models/Order');
 const User = require('../models/User');
-const { sendEmail } = require('../services/emailService');
+const { sendEmail, sendTicketAssignmentEmail } = require('../services/emailService');
 const { protect } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
@@ -614,7 +614,7 @@ router.post('/:id/calls', protect, upload.single('callRecording'), async (req, r
             actionToBeTaken, actionToBeTakenOtherReason,
             finalResolutionStatus, finalResolutionOtherReason,
             finalResolutionTime, serviceEngineerRemarks,
-            geotagPhoto, isFinalResolution
+            geotagPhoto, customerMedia, allocatedEngineer, isFinalResolution
         } = body;
 
         const ticket = await Ticket.findById(req.params.id);
@@ -645,6 +645,8 @@ router.post('/:id/calls', protect, upload.single('callRecording'), async (req, r
             finalResolutionTime,
             serviceEngineerRemarks,
             geotagPhoto,
+            customerMedia,
+            allocatedEngineer,
             
             loggedBy: req.user._id
         };
@@ -672,7 +674,10 @@ router.post('/:id/calls', protect, upload.single('callRecording'), async (req, r
             if (issueDescription) ticket.issueDescription = issueDescription;
             if (finalResolutionTime) ticket.finalResolutionTime = finalResolutionTime;
             if (photoVideoReceived !== undefined) ticket.photoVideoReceived = photoVideoReceived === 'true';
+            if (customerMedia) ticket.customerMedia = customerMedia;
+            if (allocatedEngineer) ticket.allocatedEngineer = allocatedEngineer;
 
+            // Special logic for free services (same as the patch route)
             // Special logic for free services (same as the patch route)
             if (!ticket.isServiceCounted && ticket.problemType !== 'Manufacturing issue') {
                 const clientId = ticket.client || ticket.user;
@@ -683,6 +688,32 @@ router.post('/:id/calls', protect, upload.single('callRecording'), async (req, r
                         await clientUser.save();
                         ticket.isServiceCounted = true;
                     }
+                }
+            }
+        }
+
+        // --- ENHANCEMENT: Solve On Field Reassignment ---
+        // If Solve On Field is selected in ANY log (not just final),
+        // we reassign the ticket to the selected on-field engineer.
+        if (actionToBeTaken === 'Solve On Field' && allocatedEngineer) {
+            const newEngineer = await User.findById(allocatedEngineer);
+            if (newEngineer) {
+                ticket.assignedTo = newEngineer._id;
+                ticket.assignmentStatus = 'accepted'; // Directly accept so it appears in their queue
+                
+                // Send email notification to the newly assigned engineer
+                try {
+                    await sendTicketAssignmentEmail(
+                        newEngineer.email,
+                        newEngineer.name,
+                        ticket.ticketNumber,
+                        ticket.customerName || 'Customer',
+                        ticket.problemDescription || 'On-field support required',
+                        req.user.name || 'Support Team'
+                    );
+                    console.log(`[ASSIGNMENT] Ticket ${ticket.ticketNumber} reassigned to ${newEngineer.email}`);
+                } catch (mailErr) {
+                    console.error('[ASSIGNMENT] Failed to send assignment email:', mailErr);
                 }
             }
         }

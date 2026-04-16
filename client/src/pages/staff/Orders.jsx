@@ -111,12 +111,14 @@ const StaffOrders = () => {
         const o = order.orderNumber?.toLowerCase() || '';
         const c = order.customerName?.toLowerCase() || '';
         const m = order.modelNo?.toLowerCase() || '';
+        const s = order.drones?.map(d => d.serialNo).join(', ').toLowerCase() || '';
 
         if (searchBy === 'orderNumber') return o.includes(term);
         if (searchBy === 'customer') return c.includes(term);
         if (searchBy === 'model') return m.includes(term);
+        if (searchBy === 'serialNo') return s.includes(term);
 
-        return o.includes(term) || c.includes(term) || m.includes(term);
+        return o.includes(term) || c.includes(term) || m.includes(term) || s.includes(term);
     });
 
     const getStatusColor = (status) => {
@@ -133,17 +135,7 @@ const StaffOrders = () => {
         return map[status] || 'badge-grey';
     };
 
-    const handleDelete = async (orderId, orderNo) => {
-        const password = window.prompt(`Please enter your password to delete order ${orderNo}:`);
-        if (!password) return;
 
-        try {
-            await ordersAPI.delete(orderId, password);
-            fetchData();
-        } catch (err) {
-            alert(err.response?.data?.message || 'Error deleting order');
-        }
-    };
 
     const [pendingStatuses, setPendingStatuses] = useState({});
 
@@ -178,6 +170,16 @@ const StaffOrders = () => {
         delete updatedPending[orderId];
         setPendingStatuses(updatedPending);
     };
+
+    const STATUS_SEQUENCE = [
+        'booking_confirmed',
+        'in_manufacturing',
+        'tested_successfully',
+        'uin_generated',
+        'uin_transferred_successfully',
+        'ready_to_dispatch',
+        'delivered'
+    ];
 
     if (loading) {
         return (
@@ -261,6 +263,7 @@ const StaffOrders = () => {
                     <option value="orderNumber">Order Number</option>
                     <option value="customer">Customer</option>
                     <option value="model">Model</option>
+                    <option value="serialNo">Serial No.</option>
                 </select>
             </div>
 
@@ -274,6 +277,7 @@ const StaffOrders = () => {
                                 <th>Model</th>
                                 <th>Qty</th>
                                 <th>Assigned</th>
+                                <th>Serial No.</th>
                                 <th>Status</th>
                                 <th>Date</th>
                                 <th>Actions</th>
@@ -296,6 +300,15 @@ const StaffOrders = () => {
                                             {(order.drones?.length || 0) >= order.quantity && <span style={{ color: 'green', marginLeft: '4px' }}>✔</span>}
                                         </td>
                                         <td>
+                                            {order.drones && order.drones.length > 0 ? (
+                                                <div style={{ fontSize: '12px', fontWeight: '500', color: '#1a237e' }}>
+                                                    {order.drones.map(d => d.serialNo).join(', ')}
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: '#ccc' }}>-</span>
+                                            )}
+                                        </td>
+                                        <td>
                                             <span className={`badge ${getStatusColor(order.status)}`}>
                                                 {t(`status.${order.status}`) || order.status?.replace(/_/g, ' ')}
                                             </span>
@@ -315,13 +328,20 @@ const StaffOrders = () => {
                                                         padding: '6px'
                                                     }}
                                                 >
-                                                    <option value="booking_confirmed">Booking Confirmed</option>
-                                                    <option value="in_manufacturing">In Manufacturing</option>
-                                                    <option value="tested_successfully">Flight Tested Successfully</option>
-                                                    <option value="uin_generated">UIN Generated</option>
-                                                    <option value="uin_transferred_successfully">UIN Transferred Successfully</option>
-                                                    <option value="ready_to_dispatch">Ready to Dispatch</option>
-                                                    <option value="delivered">Received/Delivered</option>
+                                                    {STATUS_SEQUENCE.map((status, index) => {
+                                                        const currentIndex = STATUS_SEQUENCE.indexOf(order.status);
+                                                        return (
+                                                            <option
+                                                                key={status}
+                                                                value={status}
+                                                                disabled={index < currentIndex}
+                                                            >
+                                                                {status === 'tested_successfully' ? 'Flight Tested Successfully' :
+                                                                 status === 'delivered' ? 'Received/Delivered' :
+                                                                 status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
 
                                                 {isPending && (
@@ -345,16 +365,7 @@ const StaffOrders = () => {
                                                     </div>
                                                 )}
 
-                                                {!isPending && (
-                                                    <button
-                                                        onClick={() => handleDelete(order._id, order.orderNumber)}
-                                                        className="btn btn-outline"
-                                                        style={{ padding: '6px 8px', borderColor: '#f44336', color: '#f44336', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        title="Delete Order"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                )}
+
                                             </div>
                                         </td>
                                     </tr>

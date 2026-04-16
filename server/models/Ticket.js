@@ -41,7 +41,7 @@ const ticketSchema = new mongoose.Schema({
     contactedCustomerAt: { type: String },
     actionToBeTaken: {
         type: String,
-        enum: ['Solve On Call', 'Solve On Feild', 'Service Center', 'Send Spare', 'Other']
+        enum: ['Solve On Call', 'Solve On Field', 'Service Center', 'Send Spare', 'Other']
     },
     actionToBeTakenOtherReason: { type: String },
     finalResolutionTime: { type: String },
@@ -82,6 +82,8 @@ const ticketSchema = new mongoose.Schema({
         finalResolutionTime: { type: String },
         serviceEngineerRemarks: { type: String },
         geotagPhoto: { type: String },
+        customerMedia: { type: String },
+        allocatedEngineer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         
         loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         createdAt: { type: Date, default: Date.now }
